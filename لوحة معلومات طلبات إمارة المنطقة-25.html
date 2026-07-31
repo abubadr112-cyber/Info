@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة معلومات طلبات إمارة المنطقة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<!-- Charting/Excel/PDF/PPTX libraries are loaded at runtime via a multi-CDN fallback loader (see main script) for resilience against a single blocked CDN domain -->
+<style>
+/* ============================= DESIGN TOKENS =============================
+   Palette: #0B3B2E deep emerald (authority/institutional green)
+            #C9A227 muted gold (seal/insignia accent)
+            #0E5A46 mid emerald (secondary)
+            #F6F4EE warm parchment (light bg)
+            #0B1220 ink navy (dark bg)
+            #7C8B86 sage grey (muted text)
+   Type: 'Cairo' for display/headings, 'Tajawal' for body/UI, both Arabic-native
+   Signature: a circular "seal" ring motif used on KPI cards and section markers,
+              echoing an official emirate stamp / insignia.
+============================================================================ */
+:root{
+  --emerald-deep:#0B3B2E;
+  --emerald-mid:#0E5A46;
+  --emerald-soft:#E7EFEA;
+  --gold:#C9A227;
+  --gold-soft:#F1E5B9;
+  --parchment:#F6F4EE;
+  --ink:#1B2420;
+  --sage:#7C8B86;
+  --card-bg:#FFFFFF;
+  --border:#E4E0D6;
+  --danger:#B3462C;
+  --ok:#2F7A56;
+  --pending:#C9A227;
+  --shadow:0 2px 14px rgba(11,59,46,.07);
+  --radius:14px;
+  --bg:var(--parchment);
+  --text:var(--ink);
+  --nav-bg:var(--emerald-deep);
+}
+[data-theme="dark"]{
+  --bg:#0B1220;
+  --text:#EDEFEC;
+  --card-bg:#111A17;
+  --border:#1F2A26;
+  --emerald-soft:#122922;
+  --sage:#8FA39C;
+  --shadow:0 2px 20px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  font-family:'Tajawal', sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  transition:background .3s, color .3s;
+  min-height:100vh;
+}
+h1,h2,h3,h4,.display{font-family:'Cairo', sans-serif;}
+button{font-family:inherit; cursor:pointer;}
+input,select{font-family:inherit;}
+::selection{background:var(--gold-soft);}
+
+/* ---------- Seal signature element ---------- */
+.seal{
+  position:relative; width:38px; height:38px; border-radius:50%;
+  border:2px solid var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0;
+}
+.seal::before{
+  content:""; position:absolute; inset:4px; border-radius:50%;
+  border:1px dashed var(--gold); opacity:.6;
+}
+.seal-dot{width:6px; height:6px; border-radius:50%; background:var(--gold);}
+
+/* ---------- Top bar ---------- */
+.topbar{
+  background:var(--nav-bg);
+  color:#fff;
+  padding:14px 22px;
+  display:flex; align-items:center; justify-content:space-between;
+  position:sticky; top:0; z-index:50;
+  box-shadow:0 2px 16px rgba(0,0,0,.15);
+}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand-logo{
+  width:42px; height:42px; border-radius:10px; object-fit:cover;
+  border:1px solid rgba(255,255,255,.3);
+}
+.brand-logo-placeholder{
+  width:42px; height:42px; border-radius:10px;
+  background:linear-gradient(135deg, var(--gold), #8f7010);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:900; color:var(--emerald-deep); font-size:18px;
+}
+.brand-text .title{font-size:16px; font-weight:800; line-height:1.3;}
+.brand-text .subtitle{font-size:11px; opacity:.75; font-weight:400;}
+
+.tabs{display:flex; gap:4px; flex-wrap:wrap;}
+.tab-btn{
+  background:transparent; border:1px solid transparent; color:#fff;
+  padding:9px 16px; border-radius:10px; font-size:14px; font-weight:600;
+  opacity:.75; transition:all .2s;
+}
+.tab-btn:hover{opacity:1; background:rgba(255,255,255,.08);}
+.tab-btn.active{opacity:1; background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.25);}
+
+.top-actions{display:flex; gap:8px; align-items:center;}
+.icon-btn{
+  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2);
+  color:#fff; width:38px; height:38px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+}
+.icon-btn:hover{background:rgba(255,255,255,.2);}
+
+/* ---------- Layout ---------- */
+.container{max-width:1400px; margin:0 auto; padding:22px;}
+.page{display:none;}
+.page.active{display:block; animation:fadeIn .35s ease;}
+@keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+/* ---------- Filters bar ---------- */
+.filters-bar{
+  background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; margin-bottom:20px; box-shadow:var(--shadow);
+  display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end;
+}
+.filter-group{display:flex; flex-direction:column; gap:6px; min-width:160px;}
+.filter-group label{font-size:12px; font-weight:700; color:var(--sage);}
+.filter-group select, .ms-trigger{
+  padding:9px 12px; border-radius:9px; border:1px solid var(--border);
+  background:var(--bg); color:var(--text); font-size:13px; min-width:170px;
+}
+.ms-wrap{position:relative;}
+.ms-trigger{display:flex; justify-content:space-between; align-items:center; gap:6px; cursor:pointer;}
+.ms-panel{
+  display:none; position:absolute; top:110%; right:0; z-index:60;
+  background:var(--card-bg); border:1px solid var(--border); border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.15); padding:10px; min-width:220px; max-height:260px; overflow:auto;
+}
+.ms-panel.open{display:block;}
+.ms-opt{display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:13px; border-radius:6px;}
+.ms-opt:hover{background:var(--emerald-soft);}
+.reset-filters-btn{
+  padding:9px 16px; border-radius:9px; border:1px solid var(--gold); background:transparent;
+  color:var(--gold); font-weight:700; font-size:13px; align-self:flex-end;
+}
+.reset-filters-btn:hover{background:var(--gold-soft);}
+
+/* ---------- KPI Cards ---------- */
+.kpi-grid{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(200px,1fr)); gap:14px; margin-bottom:24px;
+}
+.kpi-card{
+  background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px 18px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.kpi-card::after{
+  content:""; position:absolute; inset-inline-start:0; top:0; bottom:0; width:4px;
+  background:var(--gold);
+}
+.kpi-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;}
+.kpi-label{font-size:12.5px; color:var(--sage); font-weight:700;}
+.kpi-value{font-size:26px; font-weight:900; font-family:'Cairo',sans-serif; color:var(--emerald-deep);}
+[data-theme="dark"] .kpi-value{color:var(--gold);}
+.kpi-sub{font-size:11.5px; color:var(--sage); margin-top:2px;}
+
+/* ---------- Section / chart cards ---------- */
+.section-title{
+  display:flex; align-items:center; gap:10px; margin:26px 0 14px;
+}
+.section-title h2{font-size:18px; font-weight:800;}
+.charts-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(380px,1fr)); gap:18px;}
+.chart-card{
+  background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius);
+  padding:18px; box-shadow:var(--shadow);
+}
+.chart-card-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.chart-card-head h3{font-size:14.5px; font-weight:700;}
+.chart-tools{display:flex; gap:6px;}
+.mini-btn{
+  border:1px solid var(--border); background:var(--bg); border-radius:7px; padding:5px 9px;
+  font-size:11px; color:var(--sage); font-weight:700;
+}
+.mini-btn:hover{border-color:var(--gold); color:var(--gold);}
+.chart-wrap{position:relative; height:280px; width:100%;}
+.svg-chart-holder{width:100%; height:100%; display:flex; align-items:center; justify-content:center;}
+.svg-chart-holder svg{width:100%; height:100%; display:block;}
+.svg-chart-holder .pie-wrap{display:flex; align-items:center; gap:14px; height:100%; width:100%; flex-wrap:wrap; justify-content:center; overflow:auto;}
+.svg-chart-holder .chart-legend{font-size:11px; display:flex; flex-direction:column; gap:6px; max-height:100%; overflow:auto;}
+.svg-chart-holder .chart-legend .legend-row{display:flex; align-items:center; gap:6px; font-weight:600;}
+.svg-chart-holder .chart-legend .dot{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+.svg-chart-holder .grouped-wrap{display:flex; flex-direction:column; height:100%; width:100%;}
+.svg-chart-holder .grouped-legend{display:flex; gap:16px; justify-content:center; font-size:11px; margin-top:4px;}
+.chart-wrap.tall{height:340px;}
+.empty-note{
+  text-align:center; color:var(--sage); font-size:13px; padding:40px 10px;
+}
+
+/* ---------- Buttons ---------- */
+.btn{
+  padding:10px 18px; border-radius:10px; border:1px solid var(--border); background:var(--card-bg);
+  color:var(--text); font-weight:700; font-size:13.5px; display:inline-flex; align-items:center; gap:8px;
+}
+.btn:hover{border-color:var(--gold);}
+.btn-primary{background:var(--emerald-deep); color:#fff; border-color:var(--emerald-deep);}
+.btn-primary:hover{background:var(--emerald-mid);}
+.btn-gold{background:var(--gold); color:var(--emerald-deep); border-color:var(--gold);}
+.btn-danger{color:var(--danger); border-color:var(--danger);}
+.btn-danger:hover{background:rgba(179,70,44,.08);}
+.btn-row{display:flex; flex-wrap:wrap; gap:10px;}
+
+/* ---------- Cards / panels generic ---------- */
+.panel{
+  background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow); margin-bottom:18px;
+}
+.panel h3{font-size:15px; font-weight:800; margin-bottom:12px; display:flex; align-items:center; gap:8px;}
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+@media(max-width:800px){.two-col{grid-template-columns:1fr;}}
+
+/* ---------- Big indicator tiles (Indicators page) ---------- */
+.big-tiles{display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr)); gap:16px;}
+.big-tile{
+  background:linear-gradient(160deg, var(--emerald-deep), var(--emerald-mid));
+  color:#fff; border-radius:16px; padding:22px; position:relative; overflow:hidden;
+}
+.big-tile::after{
+  content:""; position:absolute; left:-30px; top:-30px; width:120px; height:120px; border-radius:50%;
+  border:1px solid rgba(255,255,255,.15);
+}
+.big-tile .lbl{font-size:13px; opacity:.85; font-weight:600; margin-bottom:8px;}
+.big-tile .val{font-size:34px; font-weight:900; font-family:'Cairo',sans-serif;}
+.big-tile .val.gold{color:var(--gold);}
+.big-tile .extra{font-size:12px; opacity:.8; margin-top:6px;}
+
+/* ---------- Tables ---------- */
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th,td{padding:9px 10px; text-align:right; border-bottom:1px solid var(--border);}
+th{color:var(--sage); font-weight:700; font-size:12px;}
+tr:hover td{background:var(--emerald-soft);}
+
+/* ---------- Data management page ---------- */
+.dropzone{
+  border:2px dashed var(--border); border-radius:14px; padding:34px 20px; text-align:center;
+  background:var(--bg); transition:.2s;
+}
+.dropzone.drag{border-color:var(--gold); background:var(--gold-soft);}
+.dropzone .dz-icon{font-size:34px; margin-bottom:10px;}
+.dropzone p{font-size:13.5px; color:var(--sage);}
+.dropzone input[type=file]{display:none;}
+
+.log-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--border); font-size:13px;}
+.log-row:last-child{border-bottom:none;}
+.badge{padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700;}
+.badge.ok{background:rgba(47,122,86,.12); color:var(--ok);}
+.badge.err{background:rgba(179,70,44,.12); color:var(--danger);}
+
+/* ---------- Settings page ---------- */
+.setting-row{display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); gap:16px;}
+.setting-row:last-child{border-bottom:none;}
+.setting-row .lbl{font-size:13.5px; font-weight:700;}
+.setting-row .desc{font-size:11.5px; color:var(--sage); margin-top:2px;}
+.switch{position:relative; width:44px; height:24px; flex-shrink:0;}
+.switch input{opacity:0; width:0; height:0;}
+.slider{position:absolute; inset:0; background:var(--border); border-radius:24px; transition:.2s;}
+.slider::before{content:""; position:absolute; width:18px; height:18px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.2s;}
+input:checked + .slider{background:var(--emerald-deep);}
+input:checked + .slider::before{transform:translateX(-20px);}
+.color-input{width:44px; height:32px; border-radius:8px; border:1px solid var(--border); padding:2px; background:var(--card-bg);}
+.text-input{padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px; min-width:220px;}
+.order-list{list-style:none;}
+.order-item{
+  display:flex; align-items:center; justify-content:space-between; padding:10px 12px; margin-bottom:8px;
+  background:var(--bg); border:1px solid var(--border); border-radius:9px; font-size:13px; font-weight:600;
+}
+.order-item .handle{display:flex; gap:6px;}
+.order-item button{border:none; background:var(--card-bg); border-radius:6px; padding:4px 8px; font-size:12px;}
+
+/* ---------- Report page ---------- */
+#reportArea{background:#fff; color:#1B2420; padding:30px; border-radius:var(--radius); max-width:900px; margin:0 auto; transition:max-width .25s;}
+#reportArea.landscape{max-width:1250px;}
+.orientation-toggle{display:inline-flex; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:3px; gap:2px;}
+.orient-btn{background:transparent; border:none; padding:8px 14px; border-radius:8px; font-size:13px; font-weight:700; color:var(--sage);}
+.orient-btn.active{background:var(--emerald-deep); color:#fff;}
+.landscape .report-kpis{grid-template-columns:repeat(4,1fr);}
+.landscape .rep-charts-grid{grid-template-columns:repeat(4,1fr);}
+.landscape .two-col{grid-template-columns:1fr 1fr;}
+@media(max-width:900px){ .landscape .report-kpis{grid-template-columns:repeat(2,1fr);} .landscape .rep-charts-grid{grid-template-columns:repeat(2,1fr);} }
+.rep-chart-card{ background:#F6F4EE; border:1px solid #E4E0D6; border-radius:12px; padding:16px; margin-bottom:16px; break-inside:avoid; }
+.rep-chart-card h4{ font-size:13.5px; font-weight:800; color:#0B3B2E; margin-bottom:10px; }
+.rep-charts-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:6px; }
+.rep-chart-wrap{ position:relative; height:230px; width:100%; }
+.rep-chart-wrap.tall{ height:280px; }
+@media(max-width:700px){ .rep-charts-grid{grid-template-columns:1fr;} }
+.rep-logo{width:52px; height:52px; border-radius:10px; object-fit:cover; border:1px solid #E4E0D6;}
+.rep-logo-placeholder{width:52px; height:52px; border-radius:10px; background:linear-gradient(135deg,#C9A227,#8f7010); display:flex; align-items:center; justify-content:center; font-weight:900; color:#0B3B2E; font-size:20px;}
+.report-header{display:flex; justify-content:space-between; align-items:center; border-bottom:3px solid var(--gold); padding-bottom:14px; margin-bottom:18px;}
+.report-header .r-title{font-size:20px; font-weight:900; font-family:'Cairo',sans-serif; color:var(--emerald-deep);}
+.report-header .r-meta{font-size:11.5px; color:#7C8B86; text-align:left;}
+.summary-edit-row{display:flex; justify-content:flex-end; margin-bottom:6px;}
+.summary-edit-btn{border:1px solid var(--border); background:var(--card-bg); border-radius:7px; padding:4px 10px; font-size:11px; color:var(--sage); font-weight:700;}
+.summary-edit-btn:hover{border-color:var(--gold); color:var(--gold);}
+.report-summary{
+  background:var(--emerald-soft); border-right:4px solid var(--gold); padding:14px 16px; border-radius:8px;
+  font-size:13.5px; line-height:2; margin-bottom:20px; outline:none;
+}
+.report-summary[contenteditable="true"]{ cursor:text; }
+.report-summary[contenteditable="true"]:hover{ box-shadow:0 0 0 1px var(--gold) inset; }
+.report-summary[contenteditable="true"]:focus{ box-shadow:0 0 0 2px var(--gold) inset; background:#fff; }
+.report-kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:20px; align-items:stretch;}
+.report-kpis div{background:#F6F4EE; border-radius:8px; padding:12px 10px; text-align:center; display:flex; flex-direction:column; justify-content:center; min-height:64px; break-inside:avoid;}
+.report-kpis .v{font-size:18px; font-weight:900; color:var(--emerald-deep);}
+.report-kpis .l{font-size:10.5px; color:#7C8B86; margin-top:3px;}
+
+/* ---------- Toast ---------- */
+#toast{
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--emerald-deep); color:#fff; padding:12px 22px; border-radius:10px; font-size:13.5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.2); opacity:0; pointer-events:none; transition:.3s; z-index:200;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+footer{text-align:center; padding:26px; font-size:12px; color:var(--sage);}
+
+/* ---------- Presentation / display mode ---------- */
+body.presentation-mode .topbar,
+body.presentation-mode .filters-bar,
+body.presentation-mode footer{ display:none !important; }
+body.presentation-mode .container{ max-width:100%; padding:36px 48px; }
+body.presentation-mode #page-indicators{ display:block !important; }
+body.presentation-mode .page:not(#page-indicators){ display:none !important; }
+body.presentation-mode .section-title h2{ font-size:26px; }
+body.presentation-mode .big-tile .lbl{ font-size:16px; }
+body.presentation-mode .big-tile .val{ font-size:46px; }
+body.presentation-mode .big-tile .extra{ font-size:14px; }
+body.presentation-mode .big-tiles{ gap:24px; }
+body.presentation-mode table{ font-size:16px; }
+body.presentation-mode th{ font-size:14px; }
+
+@media(max-width:720px){
+  .topbar{flex-wrap:wrap; gap:10px;}
+  .tabs{order:3; width:100%; overflow-x:auto;}
+  .report-kpis{grid-template-columns:repeat(2,1fr);}
+}
+@media print{
+  .topbar, .filters-bar, .btn-row, .no-print, .orientation-toggle{display:none !important;}
+  body{background:#fff; margin:0;}
+  .page{display:none !important;}
+  .page.active{display:block !important;}
+  .container{padding:0 !important; max-width:none !important;}
+
+  /* Use absolute physical units (mm/pt) for the printed report so it renders at a
+     true, consistent size regardless of the originating device's screen width —
+     mobile browsers otherwise stretch the narrow phone layout to fill the page,
+     inflating the font disproportionately. */
+  #reportArea{
+    width:180mm !important;
+    max-width:none !important;
+    margin:0 auto !important;
+    padding:8mm !important;
+  }
+  .report-header{padding-bottom:4mm !important; margin-bottom:5mm !important;}
+  .report-header .r-title{font-size:16pt !important;}
+  .report-header .r-meta{font-size:8pt !important;}
+  .rep-logo, .rep-logo-placeholder{width:14mm !important; height:14mm !important;}
+  .report-summary{font-size:9.5pt !important; line-height:1.9 !important; padding:4mm 5mm !important; margin-bottom:6mm !important;}
+  .report-kpis{gap:3mm !important; margin-bottom:6mm !important;}
+  .report-kpis div{padding:3mm !important;}
+  .report-kpis .v{font-size:13pt !important;}
+  .report-kpis .l{font-size:7.5pt !important;}
+  .rep-chart-card{padding:4mm !important; margin-bottom:4mm !important; break-inside:avoid;}
+  .rep-chart-card h4{font-size:9.5pt !important;}
+  .rep-chart-wrap{height:45mm !important;}
+  .rep-chart-wrap.tall{height:55mm !important;}
+  #repTablesArea h4{font-size:9.5pt !important;}
+  #repTablesArea table{font-size:8.5pt !important;}
+  #repTablesArea th, #repTablesArea td{padding:1.5mm 2mm !important;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar no-print">
+  <div class="brand">
+    <div id="logoSlot"><div class="brand-logo-placeholder" id="logoPlaceholder">إم</div></div>
+    <div class="brand-text">
+      <div class="title" id="brandTitle">لوحة معلومات طلبات إمارة المنطقة</div>
+      <div class="subtitle">نظام تحليل الطلبات التنفيذي</div>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-page="dashboard">الرئيسية</button>
+    <button class="tab-btn" data-page="indicators">المؤشرات</button>
+    <button class="tab-btn" data-page="report">التقرير التنفيذي</button>
+    <button class="tab-btn" data-page="data">إدارة البيانات</button>
+    <button class="tab-btn" data-page="settings">الإعدادات</button>
+  </div>
+  <div class="top-actions">
+    <button class="icon-btn" id="presentBtn" title="عرض مرئي لشاشات الاجتماعات">🖥️</button>
+    <button class="icon-btn" id="themeToggle" title="الوضع الليلي/الفاتح">🌙</button>
+    <button class="icon-btn" id="printBtn" title="طباعة">🖨️</button>
+  </div>
+</div>
+
+<button id="exitPresentBtn" class="no-print" style="display:none; position:fixed; top:16px; left:16px; z-index:100; background:rgba(11,59,46,.9); color:#fff; border:none; border-radius:10px; padding:10px 16px; font-size:13px; font-weight:700;">✕ إنهاء العرض المرئي</button>
+
+<div class="container">
+
+  <!-- ================= DASHBOARD PAGE ================= -->
+  <div class="page active" id="page-dashboard">
+    <div class="filters-bar" id="filtersBar"></div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="section-title"><div class="seal"><div class="seal-dot"></div></div><h2>الطلبات حسب الشهر</h2></div>
+    <div class="chart-card" style="margin-bottom:18px;">
+      <div class="chart-card-head"><h3>التوزيع الشهري للطلبات (الإجمالي / المكتمل / تحت الإجراء)</h3>
+        <div class="chart-tools"><button class="mini-btn" data-png="chartMonthly">حفظ PNG</button></div>
+      </div>
+      <div class="chart-wrap tall"><div id="chartMonthly" class="svg-chart-holder"></div></div>
+    </div>
+
+    <div class="section-title"><div class="seal"><div class="seal-dot"></div></div><h2>التوزيع التحليلي</h2></div>
+    <div class="charts-grid" id="analyticCharts">
+      <div class="chart-card">
+        <div class="chart-card-head"><h3>متلقي الطلب</h3><div class="chart-tools"><button class="mini-btn" data-png="chartRecipient">حفظ PNG</button></div></div>
+        <div class="chart-wrap"><div id="chartRecipient" class="svg-chart-holder"></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-head"><h3>حالة الطلب</h3><div class="chart-tools"><button class="mini-btn" data-png="chartStatus">حفظ PNG</button></div></div>
+        <div class="chart-wrap"><div id="chartStatus" class="svg-chart-holder"></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-head"><h3>التصنيف الأساسي</h3><div class="chart-tools"><button class="mini-btn" data-png="chartCategory">حفظ PNG</button></div></div>
+        <div class="chart-wrap tall"><div id="chartCategory" class="svg-chart-holder"></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-card-head"><h3>الإدارة المعنية داخل الإمارة</h3><div class="chart-tools"><button class="mini-btn" data-png="chartDept">حفظ PNG</button></div></div>
+        <div class="chart-wrap tall"><div id="chartDept" class="svg-chart-holder"></div></div>
+      </div>
+    </div>
+
+    <div class="section-title"><div class="seal"><div class="seal-dot"></div></div><h2>التحليل الذكي</h2></div>
+    <div class="panel" id="smartAnalysisBox"></div>
+  </div>
+
+  <!-- ================= INDICATORS PAGE ================= -->
+  <div class="page" id="page-indicators">
+    <div class="filters-bar" id="filtersBarIndicators"></div>
+    <div class="section-title"><div class="seal"><div class="seal-dot"></div></div><h2>المؤشرات التنفيذية</h2></div>
+    <div class="big-tiles" id="bigTiles"></div>
+
+    <div class="two-col" style="margin-top:20px;">
+      <div class="panel">
+        <h3>أعلى 5 إدارات حسب عدد الطلبات</h3>
+        <table id="top5DeptTable"><thead><tr><th>الإدارة</th><th>العدد</th><th>النسبة</th></tr></thead><tbody></tbody></table>
+      </div>
+      <div class="panel">
+        <h3>أعلى 5 تصنيفات أساسية</h3>
+        <table id="top5CatTable"><thead><tr><th>التصنيف</th><th>العدد</th><th>النسبة</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>مقارنة شهرية بين الطلبات المكتملة وتحت الإجراء</h3>
+      <div class="chart-wrap tall"><div id="chartMonthlyCompare" class="svg-chart-holder"></div></div>
+    </div>
+
+    <div class="panel">
+      <h3>الإدارات الأكثر وجودًا بها طلبات تحت الإجراء</h3>
+      <table id="pendingDeptTable"><thead><tr><th>الإدارة</th><th>عدد الطلبات تحت الإجراء</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <!-- ================= REPORT PAGE ================= -->
+  <div class="page" id="page-report">
+    <div class="btn-row no-print" style="margin-bottom:16px; align-items:center;">
+      <button class="btn btn-primary" id="genReportBtn">توليد التقرير من البيانات الحالية</button>
+      <div class="orientation-toggle" id="orientationToggle">
+        <button class="orient-btn active" data-orient="portrait" id="orientPortraitBtn">📄 عمودي</button>
+        <button class="orient-btn" data-orient="landscape" id="orientLandscapeBtn">🖥️ أفقي</button>
+      </div>
+      <button class="btn" id="exportPdfBtn">تصدير PDF</button>
+      <button class="btn" id="exportPptxBtn">تصدير PowerPoint</button>
+      <button class="btn" id="exportExcelBtn">تصدير Excel</button>
+      <button class="btn" id="exportCsvBtn">تصدير CSV</button>
+    </div>
+    <div id="reportArea">
+      <div class="report-header">
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div id="repLogoSlot"></div>
+          <div>
+            <div class="r-title" id="repTitle">لوحة معلومات طلبات إمارة المنطقة</div>
+            <div style="font-size:12px;color:#7C8B86;">التقرير التنفيذي</div>
+          </div>
+        </div>
+        <div class="r-meta">
+          <div id="repPeriod">الفترة: جميع البيانات</div>
+          <div id="repDate"></div>
+        </div>
+      </div>
+      <div class="summary-edit-row no-print"><button class="summary-edit-btn" id="regenSummaryBtn" title="إعادة كتابة النص تلقائيًا من البيانات الحالية">↺ إعادة الإنشاء التلقائي</button></div>
+      <div class="report-summary" id="repSummary" contenteditable="true" spellcheck="false">لا توجد بيانات بعد. الرجاء استيراد ملف Excel من صفحة "إدارة البيانات".</div>
+      <div class="report-kpis" id="repKpis"></div>
+
+      <div id="repChartsArea"></div>
+
+      <div id="repTablesArea"></div>
+    </div>
+  </div>
+
+  <!-- ================= DATA MANAGEMENT PAGE ================= -->
+  <div class="page" id="page-data">
+    <div class="panel">
+      <h3>📥 استيراد ملف Excel / CSV</h3>
+      <div class="dropzone" id="dropzone">
+        <div class="dz-icon">📄</div>
+        <p>اسحب الملف هنا أو اضغط للاختيار (XLSX / CSV)</p>
+        <p style="margin-top:6px;font-size:11.5px;">الأعمدة المطلوبة: تاريخ الطلب، متلقي الطلب، حالة الطلب، التصنيف الأساسي، الإدارة المعنية داخل الإمارة</p>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+      </div>
+      <div id="importPreview" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="panel">
+      <h3>📊 حالة البيانات</h3>
+      <div style="display:flex; gap:24px; flex-wrap:wrap;">
+        <div><div class="kpi-label">عدد السجلات المخزّنة</div><div class="kpi-value" id="dataCount" style="font-size:22px;">0</div></div>
+        <div><div class="kpi-label">آخر تحديث</div><div class="kpi-value" id="dataLastUpdate" style="font-size:14px;">—</div></div>
+      </div>
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-danger" id="deleteAllBtn">حذف جميع البيانات</button>
+        <button class="btn" id="backupBtn">إنشاء نسخة احتياطية</button>
+        <button class="btn" id="restoreBtn">استعادة نسخة احتياطية</button>
+        <input type="file" id="restoreInput" accept=".json" style="display:none;">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>🕓 سجل عمليات الاستيراد</h3>
+      <div id="importLogList"><p class="empty-note">لا توجد عمليات استيراد سابقة</p></div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS PAGE ================= -->
+  <div class="page" id="page-settings">
+    <div class="panel">
+      <h3>⚙️ الإعدادات العامة</h3>
+      <div class="setting-row">
+        <div><div class="lbl">اسم النظام</div><div class="desc">يظهر في الشريط العلوي والتقارير</div></div>
+        <input type="text" class="text-input" id="setSystemName">
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">شعار الجهة</div><div class="desc">صورة PNG أو JPG</div></div>
+        <div class="btn-row">
+          <input type="file" id="logoInput" accept="image/*" style="display:none;">
+          <button class="btn" id="logoBtn">رفع شعار</button>
+          <button class="btn btn-danger" id="logoRemoveBtn">إزالة</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">اللون الأساسي (Primary)</div></div>
+        <input type="color" class="color-input" id="setColorPrimary">
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">اللون الثانوي (Accent)</div></div>
+        <input type="color" class="color-input" id="setColorAccent">
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">عدد العناصر المعروضة في الرسوم/الجداول</div></div>
+        <select class="text-input" id="setItemLimit">
+          <option value="5">5</option><option value="8">8</option><option value="10">10</option><option value="15">15</option><option value="9999">الكل</option>
+        </select>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn btn-gold" id="saveSettingsBtn">حفظ الإعدادات</button>
+        <button class="btn btn-danger" id="resetSettingsBtn">إعادة كل الإعدادات للوضع الافتراضي</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>📈 إعدادات الرسوم البيانية</h3>
+      <div class="setting-row">
+        <div><div class="lbl">نوع رسم "التصنيف الأساسي" و"الإدارة"</div></div>
+        <select class="text-input" id="setBarType">
+          <option value="bar">أعمدة أفقية</option>
+          <option value="pie">دائري</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div><div class="lbl">نوع رسم "متلقي الطلب" و"حالة الطلب"</div></div>
+        <select class="text-input" id="setPieType">
+          <option value="doughnut">دائري (Doughnut)</option>
+          <option value="pie">دائري (Pie)</option>
+          <option value="bar">أعمدة</option>
+        </select>
+      </div>
+      <h4 style="margin:16px 0 8px; font-size:13.5px;">إظهار / إخفاء الرسوم</h4>
+      <div id="chartVisibilityList"></div>
+      <h4 style="margin:16px 0 8px; font-size:13.5px;">ترتيب الرسوم البيانية</h4>
+      <ul class="order-list" id="chartOrderList"></ul>
+    </div>
+  </div>
+
+</div>
+
+<footer>لوحة معلومات طلبات إمارة المنطقة — يعمل بالكامل محليًا داخل المتصفح دون إرسال البيانات إلى أي خادم</footer>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   RESILIENT LIBRARY LOADER
+   Charts are rendered with a built-in, dependency-free SVG engine (see
+   below) so the dashboard works fully offline. Only the export features
+   (Excel/CSV, PDF, PowerPoint) still need an external library, and those
+   load lazily on first use, trying several independent CDNs in turn.
+============================================================ */
+const LIB_SOURCES = {
+  xlsx: [
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js'
+  ],
+  jspdf: [
+    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+    'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js',
+    'https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'
+  ],
+  html2canvas: [
+    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
+    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+    'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+  ],
+  pptxgenjs: [
+    'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.min.js',
+    'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.min.js',
+    'https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.min.js'
+  ]
+};
+const LIB_CHECKS = {
+  xlsx: ()=> typeof XLSX !== 'undefined',
+  jspdf: ()=> !!(window.jspdf && window.jspdf.jsPDF),
+  html2canvas: ()=> typeof html2canvas !== 'undefined',
+  pptxgenjs: ()=> typeof window.PptxGenJS !== 'undefined'
+};
+const _libPromises = {};
+function loadLib(name){
+  if(LIB_CHECKS[name]()) return Promise.resolve(true);
+  if(_libPromises[name]) return _libPromises[name];
+  const urls = LIB_SOURCES[name];
+  _libPromises[name] = new Promise((resolve)=>{
+    let i = 0;
+    function tryNext(){
+      if(i >= urls.length){ resolve(false); return; }
+      const tag = document.createElement('script');
+      tag.src = urls[i];
+      tag.onload = ()=> resolve(LIB_CHECKS[name]());
+      tag.onerror = ()=>{ i++; tryNext(); };
+      document.head.appendChild(tag);
+    }
+    tryNext();
+  });
+  return _libPromises[name];
+}
+
+/* ============================================================
+   SVG CHART ENGINE (zero external dependencies)
+   Renders vertical/horizontal bars, pie/doughnut, and grouped bars as
+   plain inline SVG so charts always work with no internet connection.
+============================================================ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const CHART_PALETTE = ['#0B3B2E','#C9A227','#0E5A46','#7C8B86','#8f7010','#2F7A56','#B3462C','#4C6B5A','#D9C583','#6C7A75'];
+function svgPalette(n){ const out=[]; for(let i=0;i<n;i++) out.push(CHART_PALETTE[i%CHART_PALETTE.length]); return out; }
+function svgEl(tag, attrs){
+  const el = document.createElementNS(SVG_NS, tag);
+  for(const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+function truncateLabel(s, n){ s=String(s); return s.length>n ? s.slice(0,n-1)+'…' : s; }
+
+function svgTextColor(){ return document.documentElement.getAttribute('data-theme')==='dark' ? '#EDEFEC' : '#1B2420'; }
+function svgMutedColor(){ return document.documentElement.getAttribute('data-theme')==='dark' ? '#9FB3AC' : '#7C8B86'; }
+function svgAxisColor(){ return document.documentElement.getAttribute('data-theme')==='dark' ? '#2A3733' : '#E4E0D6'; }
+
+function drawVerticalBarChart(container, labels, values, opts={}){
+  container.innerHTML = '';
+  const W=680,H=320, padL=30,padR=10,padT=26,padB=40;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const max = Math.max(1, ...values);
+  const gap = innerW/values.length;
+  const barW = Math.min(gap*0.6, 34);
+  const color = opts.color || '#0B3B2E';
+  const textColor = opts.textColor || svgTextColor(), mutedColor = opts.mutedColor || svgMutedColor();
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, preserveAspectRatio:'xMidYMid meet'});
+  svg.appendChild(svgEl('line',{x1:padL,y1:H-padB,x2:W-padR,y2:H-padB,stroke:opts.axisColor || svgAxisColor(),'stroke-width':1}));
+  values.forEach((v,i)=>{
+    const x = padL + i*gap + (gap-barW)/2;
+    const h = max ? (v/max)*innerH : 0;
+    const y = H-padB-h;
+    svg.appendChild(svgEl('rect',{x,y,width:barW,height:Math.max(h,0),rx:3,fill:color}));
+    if(v>0){
+      const t = svgEl('text',{x:x+barW/2,y:y-6,'text-anchor':'middle','font-size':11,'font-weight':'800',fill:textColor});
+      t.textContent = v; svg.appendChild(t);
+    }
+    const lbl = svgEl('text',{x:x+barW/2,y:H-padB+18,'text-anchor':'middle','font-size':10.5,'font-weight':'700',fill:textColor});
+    lbl.textContent = labels[i]; svg.appendChild(lbl);
+  });
+  container.appendChild(svg);
+}
+
+function drawHorizontalBarChart(container, labels, values, opts={}){
+  container.innerHTML = '';
+  if(!labels.length){ container.innerHTML = '<p class="empty-note">لا توجد بيانات</p>'; return; }
+  const max = Math.max(1, ...values);
+  const rowH = 36;
+  const W = 640, padL = 6, padR = 210;
+  const innerW = W - padL - padR;
+  const H = labels.length*rowH + 8;
+  const color = opts.color || '#C9A227';
+  const textColor = opts.textColor || svgTextColor();
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, preserveAspectRatio:'xMidYMid meet'});
+  labels.forEach((lbl,i)=>{
+    const v = values[i];
+    const rowY = 4 + i*rowH;
+    const w = max ? (v/max)*innerW : 0;
+    const barY = rowY + 6;
+    svg.appendChild(svgEl('rect',{x:padL, y:barY, width:Math.max(w,2), height:14, rx:4, fill:color}));
+    const valT = svgEl('text',{x:padL+w+8, y:barY+11, 'font-size':11, 'font-weight':'800', fill:textColor});
+    valT.textContent = v; svg.appendChild(valT);
+    const labelT = svgEl('text',{x:W-4, y:barY+11, 'text-anchor':'end', 'font-size':10, fill:textColor});
+    labelT.textContent = truncateLabel(lbl, 26);
+    const titleEl = svgEl('title',{}); titleEl.textContent = lbl; labelT.appendChild(titleEl);
+    svg.appendChild(labelT);
+  });
+  container.appendChild(svg);
+}
+
+function polarPoint(cx,cy,r,angleDeg){
+  const rad = angleDeg*Math.PI/180;
+  return { x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad) };
+}
+function describeArc(cx,cy,r,startAngle,endAngle,innerR){
+  const startOuter = polarPoint(cx,cy,r,startAngle);
+  const endOuter = polarPoint(cx,cy,r,endAngle);
+  const largeArc = (endAngle-startAngle) > 180 ? 1 : 0;
+  if(innerR>0){
+    const startInner = polarPoint(cx,cy,innerR,endAngle);
+    const endInner = polarPoint(cx,cy,innerR,startAngle);
+    return [
+      `M ${startOuter.x} ${startOuter.y}`,
+      `A ${r} ${r} 0 ${largeArc} 1 ${endOuter.x} ${endOuter.y}`,
+      `L ${startInner.x} ${startInner.y}`,
+      `A ${innerR} ${innerR} 0 ${largeArc} 0 ${endInner.x} ${endInner.y}`,
+      'Z'
+    ].join(' ');
+  }
+  return [`M ${cx} ${cy}`, `L ${startOuter.x} ${startOuter.y}`, `A ${r} ${r} 0 ${largeArc} 1 ${endOuter.x} ${endOuter.y}`, 'Z'].join(' ');
+}
+function drawPieChart(container, labels, values, opts={}){
+  container.innerHTML = '';
+  const total = values.reduce((a,b)=>a+b,0);
+  if(!total){ container.innerHTML = '<p class="empty-note">لا توجد بيانات</p>'; return; }
+  const size = 200, cx=size/2, cy=size/2, r=size/2-6;
+  const innerR = opts.doughnut===false ? 0 : r*0.55;
+  const colors = opts.colors || svgPalette(labels.length);
+  const wrap = document.createElement('div'); wrap.className = 'pie-wrap';
+  const svg = svgEl('svg',{viewBox:`0 0 ${size} ${size}`, style:`width:${size}px; height:${size}px; flex-shrink:0;`});
+  let angle = -90;
+  values.forEach((v,i)=>{
+    const sweep = (v/total)*360;
+    if(sweep > 0){
+      const path = svgEl('path',{d: describeArc(cx,cy,r,angle,angle+sweep,innerR), fill: colors[i]});
+      svg.appendChild(path);
+    }
+    angle += sweep;
+  });
+  wrap.appendChild(svg);
+  const legend = document.createElement('div'); legend.className = 'chart-legend';
+  labels.forEach((lbl,i)=>{
+    const row = document.createElement('div'); row.className = 'legend-row';
+    const dot = document.createElement('span'); dot.className='dot'; dot.style.background = colors[i];
+    const txt = document.createElement('span'); txt.textContent = `${lbl}: ${values[i]} (${Math.round(values[i]/total*100)}%)`;
+    row.appendChild(dot); row.appendChild(txt); legend.appendChild(row);
+  });
+  wrap.appendChild(legend);
+  container.appendChild(wrap);
+}
+
+function drawGroupedBarChart(container, labels, series, opts={}){
+  container.innerHTML = '';
+  const wrap = document.createElement('div'); wrap.className = 'grouped-wrap';
+  const svgHolder = document.createElement('div'); svgHolder.style.cssText='flex:1; min-height:0;';
+  const W=700,H=300,padL=30,padR=10,padT=20,padB=44;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const allVals = series.flatMap(s=>s.values);
+  const max = Math.max(1, ...allVals);
+  const groupGap = innerW/labels.length;
+  const barW = Math.min((groupGap*0.7)/series.length, 20);
+  const textColor = opts.textColor || svgTextColor();
+  const axisColor = opts.axisColor || svgAxisColor();
+  const svg = svgEl('svg',{viewBox:`0 0 ${W} ${H}`, preserveAspectRatio:'xMidYMid meet', style:'width:100%; height:100%; display:block;'});
+  svg.appendChild(svgEl('line',{x1:padL,y1:H-padB,x2:W-padR,y2:H-padB,stroke:axisColor}));
+  labels.forEach((lbl,gi)=>{
+    series.forEach((s,si)=>{
+      const v = s.values[gi];
+      const h = max ? (v/max)*innerH : 0;
+      const x = padL + gi*groupGap + (groupGap - barW*series.length)/2 + si*barW;
+      const y = H-padB-h;
+      svg.appendChild(svgEl('rect',{x,y,width:barW*0.85,height:Math.max(h,0),rx:2,fill:s.color}));
+      if(opts.valueLabels && v>0){
+        const vt = svgEl('text',{x:x+barW*0.425, y:y-3, 'text-anchor':'middle', 'font-size':7, 'font-weight':'700', fill:textColor});
+        vt.textContent = v; svg.appendChild(vt);
+      }
+    });
+    const lblFontSize = labels.length > 9 ? 7.5 : (labels.length > 6 ? 8.5 : 10);
+    const lt = svgEl('text',{x:padL+gi*groupGap+groupGap/2, y:H-padB+18, 'text-anchor':'middle','font-size':lblFontSize, 'font-weight':'700', fill:textColor});
+    lt.textContent = lbl; svg.appendChild(lt);
+  });
+  svgHolder.appendChild(svg);
+  wrap.appendChild(svgHolder);
+  const legend = document.createElement('div'); legend.className = 'grouped-legend';
+  series.forEach(s=>{
+    const row = document.createElement('span'); row.style.cssText='display:inline-flex;align-items:center;gap:5px;';
+    row.innerHTML = `<span style="width:10px;height:10px;border-radius:3px;background:${s.color};display:inline-block;"></span>${s.name}`;
+    legend.appendChild(row);
+  });
+  wrap.appendChild(legend);
+  container.appendChild(wrap);
+}
+
+
+const LS_RECORDS = 'ed_records_v1';
+const LS_SETTINGS = 'ed_settings_v1';
+const LS_LOG = 'ed_importlog_v1';
+const LS_THEME = 'ed_theme_v1';
+
+const MONTHS_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const MONTHS_SHORT = ['ينا','فبر','مار','أبر','ماي','يون','يول','أغس','سبت','أكت','نوف','ديس'];
+
+const DEFAULT_SETTINGS = {
+  systemName: 'لوحة معلومات طلبات إمارة المنطقة',
+  logo: null,
+  colorPrimary: '#0B3B2E',
+  colorAccent: '#C9A227',
+  itemLimit: 10,
+  barType: 'bar',
+  pieType: 'doughnut',
+  chartVisibility: { monthly:true, recipient:true, status:true, category:true, dept:true },
+  chartOrder: ['recipient','status','category','dept']
+};
+
+const COLUMN_ALIASES = {
+  date: ['تاريخ الطلب','التاريخ','تاريخ'],
+  recipient: ['متلقي الطلب','متلقى الطلب','المتلقي'],
+  status: ['حالة الطلب','حاله الطلب','الحالة','حالة'],
+  category: ['التصنيف الأساسي','التصنيف'],
+  department: ['الإدارة المعنية داخل الإمارة','الإدارة المعنية','الإدارة']
+};
+
+/* ============================================================
+   STATE
+============================================================ */
+let records = [];       // {date: Date, recipient, status, category, department}
+let settings = {...DEFAULT_SETTINGS};
+let importLog = [];
+let filters = { months: new Set(), recipient:'', status:'', category:'', department:'' };
+let charts = {}; // reserved for future chart state (SVG charts are stateless, redrawn on each render)
+
+/* ============================================================
+   UTIL
+============================================================ */
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+function saveLS(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ showToast('تعذر حفظ البيانات محلياً (المساحة ممتلئة)'); } }
+function loadLS(key, fallback){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }catch(e){ return fallback; } }
+
+function normalizeHeader(h){
+  return String(h||'')
+    .replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g,'') // zero-width & RTL/LTR marks
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function arabicFold(s){
+  // normalize common Arabic spelling variants so headers like "حاله" vs "حالة" still match
+  return normalizeHeader(s)
+    .replace(/[أإآا]/g,'ا')
+    .replace(/[ىي]/g,'ي')
+    .replace(/ة/g,'ه')
+    .replace(/[ًٌٍَُِّْ]/g,'') // strip tashkeel
+    .replace(/\s+/g,' ')
+    .trim();
+}
+function matchColumn(headers, aliases){
+  for(const a of aliases){
+    const found = headers.find(h => normalizeHeader(h) === a);
+    if(found) return found;
+  }
+  // folded exact match (handles ة/ه, أ/إ/ا, ى/ي variants)
+  for(const a of aliases){
+    const foldedA = arabicFold(a);
+    const found = headers.find(h => arabicFold(h) === foldedA);
+    if(found) return found;
+  }
+  // fuzzy contains (folded)
+  for(const a of aliases){
+    const foldedA = arabicFold(a);
+    const found = headers.find(h => arabicFold(h).includes(foldedA) || foldedA.includes(arabicFold(h)));
+    if(found) return found;
+  }
+  return null;
+}
+
+function parseDateValue(v){
+  if(v instanceof Date && !isNaN(v)) return v;
+  if(typeof v === 'number'){
+    // excel serial date
+    const d = XLSX.SSF ? XLSX.SSF.parse_date_code(v) : null;
+    if(d) return new Date(d.y, d.m-1, d.d);
+  }
+  if(typeof v === 'string'){
+    const s = v.trim();
+    // try DD/MM/YYYY or YYYY-MM-DD
+    let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+    if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+    m = s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+    const parsed = new Date(s);
+    if(!isNaN(parsed)) return parsed;
+  }
+  return null;
+}
+
+function normStatus(v){
+  const s = String(v||'').trim();
+  if(/مكتمل|منج|منته|تم/.test(s)) return 'مكتمل';
+  if(/إجراء|اجراء|جاري|قيد|معلق/.test(s)) return 'تحت الإجراء';
+  return s || 'غير محدد';
+}
+function normRecipient(v){
+  const s = String(v||'').trim();
+  if(!s) return 'غير محدد';
+  if(/نائب/.test(s)) return 'نائب أمير المنطقة';
+  if(/أمير|امير/.test(s)) return 'أمير المنطقة';
+  return 'غير محدد';
+}
+
+/* ============================================================
+   DATA LOAD / SAVE
+============================================================ */
+function loadAll(){
+  const raw = loadLS(LS_RECORDS, []);
+  records = raw.map(r => ({...r, date: r.date ? new Date(r.date) : null}));
+  settings = {...DEFAULT_SETTINGS, ...loadLS(LS_SETTINGS, {})};
+  importLog = loadLS(LS_LOG, []);
+  const theme = loadLS(LS_THEME, 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeToggle').textContent = theme==='dark' ? '☀️' : '🌙';
+}
+function persistRecords(){ saveLS(LS_RECORDS, records); }
+function persistSettings(){ saveLS(LS_SETTINGS, settings); }
+function persistLog(){ saveLS(LS_LOG, importLog); }
+
+/* ============================================================
+   IMPORT (Excel/CSV)
+============================================================ */
+function handleFile(file){
+  showToast('جارٍ تحضير قارئ ملفات Excel...');
+  loadLib('xlsx').then(ok=>{
+    if(!ok){ showToast('تعذر تحميل مكتبة قراءة Excel من جميع المصادر — تحقق من الاتصال بالإنترنت'); return; }
+    handleFileParsed(file);
+  });
+}
+function handleFileParsed(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:null});
+      if(!rows.length){ showToast('الملف لا يحتوي على بيانات'); return; }
+      const headers = Object.keys(rows[0]);
+      const colDate = matchColumn(headers, COLUMN_ALIASES.date);
+      const colRecipient = matchColumn(headers, COLUMN_ALIASES.recipient);
+      const colStatus = matchColumn(headers, COLUMN_ALIASES.status);
+      const colCategory = matchColumn(headers, COLUMN_ALIASES.category);
+      const colDept = matchColumn(headers, COLUMN_ALIASES.department);
+
+      const missing = [];
+      if(!colDate) missing.push('تاريخ الطلب');
+      if(!colRecipient) missing.push('متلقي الطلب');
+      if(!colStatus) missing.push('حالة الطلب');
+      if(!colCategory) missing.push('التصنيف الأساسي');
+      if(!colDept) missing.push('الإدارة المعنية داخل الإمارة');
+
+      if(missing.length){
+        logImport(false, file.name, 0, 'أعمدة مفقودة: ' + missing.join('، '));
+        showImportPreview(null, missing);
+        showToast('تعذر الاستيراد: أعمدة مفقودة');
+        return;
+      }
+
+      let parsed = [];
+      let skipped = 0;
+      rows.forEach(row=>{
+        const isEmpty = headers.every(h => row[h]===null || row[h]==='' || row[h]===undefined);
+        if(isEmpty){ skipped++; return; }
+        const date = parseDateValue(row[colDate]);
+        const recipient = normRecipient(row[colRecipient]);
+        const status = normStatus(row[colStatus]);
+        const category = String(row[colCategory]||'').trim() || 'غير مصنّف';
+        const department = String(row[colDept]||'').trim() || 'غير محددة';
+        if(!date){ skipped++; return; }
+        parsed.push({ id:uid(), date, recipient, status, category, department });
+      });
+
+      if(!parsed.length){
+        logImport(false, file.name, 0, 'لم يتم العثور على صفوف صالحة بعد التنظيف');
+        showImportPreview(null, []);
+        showToast('لا توجد صفوف صالحة للاستيراد');
+        return;
+      }
+
+      showImportPreview(parsed, [], skipped, file.name);
+    }catch(err){
+      logImport(false, file.name, 0, 'خطأ أثناء قراءة الملف: ' + err.message);
+      showToast('حدث خطأ أثناء قراءة الملف');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+let pendingImport = null;
+function showImportPreview(parsed, missing, skipped, fileName){
+  const box = document.getElementById('importPreview');
+  if(!parsed){
+    box.innerHTML = `<div class="panel" style="background:rgba(179,70,44,.06); border-color:var(--danger);">
+      <strong style="color:var(--danger);">تعذر الاستيراد</strong>
+      <p style="margin-top:6px;font-size:13px;">${missing.length ? 'الأعمدة التالية غير موجودة في الملف: ' + missing.join('، ') : 'لم يتم العثور على بيانات صالحة.'}</p>
+    </div>`;
+    return;
+  }
+  pendingImport = { rows: parsed, fileName, skipped };
+  box.innerHTML = `
+    <div class="panel" style="background:var(--emerald-soft);">
+      <strong>معاينة الاستيراد — ${fileName}</strong>
+      <p style="margin:8px 0;font-size:13px;">تم العثور على <b>${parsed.length}</b> سجل صالح${skipped?`، وتم تجاهل <b>${skipped}</b> صف فارغ/غير صالح`:''}.</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="confirmReplaceBtn">استبدال البيانات الحالية</button>
+        <button class="btn btn-gold" id="confirmMergeBtn">دمج مع البيانات الحالية</button>
+        <button class="btn" id="cancelImportBtn">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('confirmReplaceBtn').onclick = ()=> commitImport('replace');
+  document.getElementById('confirmMergeBtn').onclick = ()=> commitImport('merge');
+  document.getElementById('cancelImportBtn').onclick = ()=>{ pendingImport=null; box.innerHTML=''; };
+}
+
+function commitImport(mode){
+  if(!pendingImport) return;
+  if(mode==='replace') records = pendingImport.rows;
+  else records = records.concat(pendingImport.rows);
+  persistRecords();
+  logImport(true, pendingImport.fileName, pendingImport.rows.length, mode==='replace'?'استبدال':'دمج');
+  document.getElementById('importPreview').innerHTML = `<p style="color:var(--ok);font-size:13px;">✅ تم الاستيراد بنجاح (${pendingImport.rows.length} سجل).</p>`;
+  pendingImport = null;
+  showToast('تم استيراد البيانات بنجاح');
+  refreshFilterOptions();
+  renderAll();
+  updateDataStatus();
+}
+
+function logImport(success, fileName, count, note){
+  importLog.unshift({ time:new Date().toISOString(), success, fileName, count, note });
+  importLog = importLog.slice(0,25);
+  persistLog();
+  renderImportLog();
+}
+
+function renderImportLog(){
+  const el = document.getElementById('importLogList');
+  if(!importLog.length){ el.innerHTML = '<p class="empty-note">لا توجد عمليات استيراد سابقة</p>'; return; }
+  el.innerHTML = importLog.map(l=>`
+    <div class="log-row">
+      <span>${new Date(l.time).toLocaleString('ar-SA')} — ${l.fileName||'—'} ${l.note?`(${l.note})`:''}</span>
+      <span class="badge ${l.success?'ok':'err'}">${l.success? 'نجاح ('+l.count+' سجل)' : 'فشل'}</span>
+    </div>`).join('');
+}
+
+/* ============================================================
+   FILTERING
+============================================================ */
+function getFilteredRecords(){
+  return records.filter(r=>{
+    if(!r.date) return false;
+    if(filters.months.size && !filters.months.has(r.date.getMonth())) return false;
+    if(filters.recipient && r.recipient !== filters.recipient) return false;
+    if(filters.status && r.status !== filters.status) return false;
+    if(filters.category && r.category !== filters.category) return false;
+    if(filters.department && r.department !== filters.department) return false;
+    return true;
+  });
+}
+
+function uniqueValues(field){
+  return Array.from(new Set(records.map(r=>r[field]).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ar'));
+}
+
+function buildFiltersBar(containerId, syncTarget){
+  const el = document.getElementById(containerId);
+  const cats = uniqueValues('category');
+  const depts = uniqueValues('department');
+  el.innerHTML = `
+    <div class="filter-group ms-wrap">
+      <label>الأشهر</label>
+      <div class="ms-trigger" id="${containerId}_msTrigger">${monthsLabel()} <span>▾</span></div>
+      <div class="ms-panel" id="${containerId}_msPanel">
+        <div class="ms-opt"><input type="checkbox" id="${containerId}_allMonths"> <label for="${containerId}_allMonths">جميع الأشهر</label></div>
+        ${MONTHS_AR.map((m,i)=>`<div class="ms-opt"><input type="checkbox" class="monthChk" data-idx="${i}" id="${containerId}_m${i}"> <label for="${containerId}_m${i}">${m}</label></div>`).join('')}
+      </div>
+    </div>
+    <div class="filter-group">
+      <label>متلقي الطلب</label>
+      <select id="${containerId}_recipient">
+        <option value="">الكل</option>
+        <option value="أمير المنطقة">أمير المنطقة</option>
+        <option value="نائب أمير المنطقة">نائب أمير المنطقة</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>حالة الطلب</label>
+      <select id="${containerId}_status">
+        <option value="">الكل</option>
+        <option value="مكتمل">مكتمل</option>
+        <option value="تحت الإجراء">تحت الإجراء</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>التصنيف الأساسي</label>
+      <select id="${containerId}_category">
+        <option value="">الكل</option>
+        ${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>الإدارة المعنية</label>
+      <select id="${containerId}_department">
+        <option value="">الكل</option>
+        ${depts.map(d=>`<option value="${d}">${d}</option>`).join('')}
+      </select>
+    </div>
+    <button class="reset-filters-btn" id="${containerId}_reset">إعادة تعيين الفلاتر</button>
+  `;
+
+  const trigger = document.getElementById(containerId+'_msTrigger');
+  const panel = document.getElementById(containerId+'_msPanel');
+  trigger.onclick = ()=> panel.classList.toggle('open');
+  document.addEventListener('click', (e)=>{ if(!panel.contains(e.target) && e.target!==trigger) panel.classList.remove('open'); });
+
+  const allChk = document.getElementById(containerId+'_allMonths');
+  allChk.onchange = ()=>{
+    document.querySelectorAll(`#${containerId}_msPanel .monthChk`).forEach(c=>c.checked = allChk.checked);
+    syncMonths(containerId);
+  };
+  document.querySelectorAll(`#${containerId}_msPanel .monthChk`).forEach(c=>{
+    c.checked = filters.months.has(+c.dataset.idx);
+    c.onchange = ()=> syncMonths(containerId);
+  });
+
+  document.getElementById(containerId+'_recipient').value = filters.recipient;
+  document.getElementById(containerId+'_recipient').onchange = e=>{ filters.recipient=e.target.value; onFilterChange(); };
+  document.getElementById(containerId+'_status').value = filters.status;
+  document.getElementById(containerId+'_status').onchange = e=>{ filters.status=e.target.value; onFilterChange(); };
+  document.getElementById(containerId+'_category').value = filters.category;
+  document.getElementById(containerId+'_category').onchange = e=>{ filters.category=e.target.value; onFilterChange(); };
+  document.getElementById(containerId+'_department').value = filters.department;
+  document.getElementById(containerId+'_department').onchange = e=>{ filters.department=e.target.value; onFilterChange(); };
+  document.getElementById(containerId+'_reset').onclick = ()=>{
+    filters = { months:new Set(), recipient:'', status:'', category:'', department:'' };
+    buildFiltersBar('filtersBar');
+    buildFiltersBar('filtersBarIndicators');
+    onFilterChange();
+  };
+}
+function syncMonths(containerId){
+  const checked = Array.from(document.querySelectorAll(`#${containerId}_msPanel .monthChk:checked`)).map(c=>+c.dataset.idx);
+  filters.months = new Set(checked);
+  document.getElementById(containerId+'_msTrigger').innerHTML = monthsLabel() + ' <span>▾</span>';
+  onFilterChange();
+}
+function monthsLabel(){
+  if(!filters.months.size) return 'جميع الأشهر';
+  if(filters.months.size === 12) return 'جميع الأشهر';
+  if(filters.months.size <= 2) return Array.from(filters.months).sort((a,b)=>a-b).map(i=>MONTHS_AR[i]).join('، ');
+  return filters.months.size + ' أشهر محددة';
+}
+function refreshFilterOptions(){
+  buildFiltersBar('filtersBar');
+  buildFiltersBar('filtersBarIndicators');
+}
+function onFilterChange(){
+  renderDashboard();
+  renderIndicators();
+}
+
+/* ============================================================
+   AGGREGATIONS
+============================================================ */
+function computeStats(data){
+  const total = data.length;
+  const toAmir = data.filter(r=>r.recipient==='أمير المنطقة').length;
+  const toNaib = data.filter(r=>r.recipient==='نائب أمير المنطقة').length;
+  const completed = data.filter(r=>r.status==='مكتمل').length;
+  const pending = data.filter(r=>r.status==='تحت الإجراء').length;
+  const completionRate = total ? Math.round((completed/total)*100) : 0;
+
+  const byMonth = new Array(12).fill(0);
+  data.forEach(r=>{ if(r.date) byMonth[r.date.getMonth()]++; });
+  const maxMonthIdx = byMonth.indexOf(Math.max(...byMonth));
+  const monthsWithData = byMonth.map((v,i)=>({v,i})).filter(x=>x.v>0);
+  const minMonthIdx = monthsWithData.length ? monthsWithData.reduce((a,b)=> b.v<a.v?b:a).i : maxMonthIdx;
+
+  const depts = countBy(data, 'department');
+  const cats = countBy(data, 'category');
+  const deptCount = Object.keys(depts).length;
+  const catCount = Object.keys(cats).length;
+  const topDept = topOf(depts);
+  const topCat = topOf(cats);
+
+  const monthsActive = monthsWithData.length || 1;
+  const avgMonthly = Math.round(total / monthsActive);
+
+  return { total, toAmir, toNaib, completed, pending, completionRate, byMonth, maxMonthIdx, minMonthIdx,
+           depts, cats, deptCount, catCount, topDept, topCat, avgMonthly };
+}
+function countBy(data, field){
+  const m = {};
+  data.forEach(r=>{ const k=r[field]||'غير محدد'; m[k]=(m[k]||0)+1; });
+  return m;
+}
+function topOf(map){
+  const entries = Object.entries(map);
+  if(!entries.length) return null;
+  return entries.reduce((a,b)=> b[1]>a[1]?b:a);
+}
+function sortedEntries(map){ return Object.entries(map).sort((a,b)=>b[1]-a[1]); }
+
+/* ============================================================
+   RENDER: DASHBOARD
+============================================================ */
+function renderDashboard(){
+  const data = getFilteredRecords();
+  const s = computeStats(data);
+  renderKPIs(s);
+  renderCharts(data, s);
+  renderSmartAnalysis(s, data);
+}
+
+function visOK(key){ return settings.chartVisibility[key] !== false; }
+
+function renderKPIs(s){
+  const items = [
+    ['إجمالي عدد الطلبات', s.total, '', null],
+    ['طلبات أمير المنطقة', s.toAmir, s.total? Math.round(s.toAmir/s.total*100)+'%' : '', 'recipient'],
+    ['طلبات نائب أمير المنطقة', s.toNaib, s.total? Math.round(s.toNaib/s.total*100)+'%' : '', 'recipient'],
+    ['الطلبات المكتملة', s.completed, '', 'status'],
+    ['الطلبات تحت الإجراء', s.pending, '', 'status'],
+    ['نسبة الإنجاز', s.completionRate+'%', '', 'status'],
+    ['عدد الإدارات المعنية', s.deptCount, '', 'dept'],
+    ['عدد التصنيفات الأساسية', s.catCount, '', 'category'],
+    ['متوسط الطلبات الشهري', s.avgMonthly, '', 'monthly'],
+    ['أكثر شهر استقبالاً', s.total? MONTHS_AR[s.maxMonthIdx] : '—', s.total? s.byMonth[s.maxMonthIdx]+' طلب' : '', 'monthly'],
+    ['أقل شهر استقبالاً', s.total? MONTHS_AR[s.minMonthIdx] : '—', s.total? s.byMonth[s.minMonthIdx]+' طلب' : '', 'monthly'],
+    ['أكثر إدارة استقبالاً', s.topDept? s.topDept[0] : '—', s.topDept? s.topDept[1]+' طلب' : '', 'dept'],
+    ['أكثر تصنيف تكراراً', s.topCat? s.topCat[0] : '—', s.topCat? s.topCat[1]+' طلب' : '', 'category'],
+  ].filter(([,,,key])=> !key || visOK(key));
+  document.getElementById('kpiGrid').innerHTML = items.map(([label,val,sub])=>`
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">${label}</span></div>
+      <div class="kpi-value">${val}</div>
+      ${sub?`<div class="kpi-sub">${sub}</div>`:''}
+    </div>`).join('');
+}
+
+function activeMonthsData(s){
+  const labels = [], values = [];
+  s.byMonth.forEach((v,i)=>{ if(v>0){ labels.push(MONTHS_AR[i]); values.push(v); } });
+  return { labels, values };
+}
+
+const MONTHLY_SERIES_COLORS = { total:'#1D4ED8', completed:'#2F7A56', pending:'#E2A82B' };
+function monthlyBreakdownSeries(data, s){
+  const completedByMonth = new Array(12).fill(0);
+  const pendingByMonth = new Array(12).fill(0);
+  data.forEach(r=>{
+    if(!r.date) return;
+    if(r.status==='مكتمل') completedByMonth[r.date.getMonth()]++;
+    else if(r.status==='تحت الإجراء') pendingByMonth[r.date.getMonth()]++;
+  });
+  const labels=[], total=[], completed=[], pending=[];
+  s.byMonth.forEach((v,i)=>{
+    if(v>0){ labels.push(MONTHS_AR[i]); total.push(v); completed.push(completedByMonth[i]); pending.push(pendingByMonth[i]); }
+  });
+  return { labels, total, completed, pending };
+}
+
+function chartColors(n){ return svgPalette(n); }
+
+function renderCharts(data, s){
+  const order = settings.chartOrder;
+  const vis = settings.chartVisibility;
+
+  // Monthly chart (always shown as primary trend)
+  const monthlyCard = document.getElementById('chartMonthly').closest('.chart-card');
+  monthlyCard.style.display = vis.monthly===false ? 'none' : '';
+  if(vis.monthly !== false){
+    const ms = monthlyBreakdownSeries(data, s);
+    if(ms.labels.length){
+      drawGroupedBarChart(document.getElementById('chartMonthly'), ms.labels, [
+        {name:'إجمالي الطلبات', values:ms.total, color:MONTHLY_SERIES_COLORS.total},
+        {name:'مكتمل', values:ms.completed, color:MONTHLY_SERIES_COLORS.completed},
+        {name:'تحت الإجراء', values:ms.pending, color:MONTHLY_SERIES_COLORS.pending}
+      ], { valueLabels:true });
+    } else {
+      document.getElementById('chartMonthly').innerHTML = '<p class="empty-note">لا توجد بيانات</p>';
+    }
+  }
+
+  // Recipient
+  renderSimpleChart('chartRecipient', data, 'recipient', settings.pieType, vis.recipient);
+  // Status
+  renderSimpleChart('chartStatus', data, 'status', settings.pieType, vis.status);
+  // Category
+  renderRankedChart('chartCategory', data, 'category', settings.barType, vis.category);
+  // Department
+  renderRankedChart('chartDept', data, 'department', settings.barType, vis.dept);
+
+  // reorder DOM according to settings.chartOrder
+  const grid = document.getElementById('analyticCharts');
+  const map = { recipient:'chartRecipient', status:'chartStatus', category:'chartCategory', dept:'chartDept' };
+  order.forEach(key=>{
+    const holder = document.getElementById(map[key]);
+    if(holder) grid.appendChild(holder.closest('.chart-card'));
+  });
+}
+
+function renderSimpleChart(holderId, data, field, type, visible){
+  const card = document.getElementById(holderId).closest('.chart-card');
+  card.style.display = visible===false ? 'none' : '';
+  if(visible===false) return;
+  const counts = countBy(data, field);
+  const labels = Object.keys(counts);
+  const values = Object.values(counts);
+  const holder = document.getElementById(holderId);
+  if(!labels.length){ holder.innerHTML = '<p class="empty-note">لا توجد بيانات</p>'; return; }
+  if(type==='bar'){
+    drawHorizontalBarChart(holder, labels, values, { color: settings.colorAccent });
+  } else {
+    drawPieChart(holder, labels, values, { doughnut: type!=='pie', colors: svgPalette(labels.length) });
+  }
+}
+
+function renderRankedChart(holderId, data, field, type, visible){
+  const card = document.getElementById(holderId).closest('.chart-card');
+  card.style.display = visible===false ? 'none' : '';
+  if(visible===false) return;
+  const counts = countBy(data, field);
+  let entries = sortedEntries(counts);
+  const limit = settings.itemLimit || 10;
+  entries = entries.slice(0, limit);
+  const holder = document.getElementById(holderId);
+  if(!entries.length){ holder.innerHTML = '<p class="empty-note">لا توجد بيانات</p>'; return; }
+  if(type==='pie'){
+    drawPieChart(holder, entries.map(e=>e[0]), entries.map(e=>e[1]), { colors: svgPalette(entries.length) });
+  } else {
+    drawHorizontalBarChart(holder, entries.map(e=>e[0]), entries.map(e=>e[1]), { color: settings.colorAccent });
+  }
+}
+
+function renderSmartAnalysis(s, data){
+  const box = document.getElementById('smartAnalysisBox');
+  if(!s.total){ box.innerHTML = '<p class="empty-note">لا توجد بيانات لعرض التحليل. الرجاء استيراد ملف من صفحة إدارة البيانات.</p>'; return; }
+
+  // trend: compare last two active months
+  const activeMonths = s.byMonth.map((v,i)=>({v,i})).filter(x=>x.v>0);
+  let trendText = 'لا تتوفر بيانات كافية لتحديد الاتجاه الشهري.';
+  if(activeMonths.length >= 2){
+    const last = activeMonths[activeMonths.length-1];
+    const prev = activeMonths[activeMonths.length-2];
+    const diff = last.v - prev.v;
+    const pct = prev.v ? Math.round(Math.abs(diff)/prev.v*100) : 0;
+    trendText = diff>0
+      ? `يُظهر عدد الطلبات ارتفاعًا في شهر ${MONTHS_AR[last.i]} بنسبة ${pct}% مقارنة بشهر ${MONTHS_AR[prev.i]}.`
+      : diff<0
+      ? `يُظهر عدد الطلبات انخفاضًا في شهر ${MONTHS_AR[last.i]} بنسبة ${pct}% مقارنة بشهر ${MONTHS_AR[prev.i]}.`
+      : `استقر عدد الطلبات في شهر ${MONTHS_AR[last.i]} مقارنة بشهر ${MONTHS_AR[prev.i]}.`;
+  }
+
+  const pendingByDept = {};
+  data.filter(r=>r.status==='تحت الإجراء').forEach(r=> pendingByDept[r.department]=(pendingByDept[r.department]||0)+1);
+  const topPendingDept = topOf(pendingByDept);
+
+  const points = [
+    visOK('monthly') ? trendText : '',
+    visOK('status') ? `بلغت نسبة الإنجاز الإجمالية ${s.completionRate}%، من أصل ${s.total} طلبًا.` : '',
+    visOK('recipient') ? `استحوذ أمير المنطقة على ${s.total? Math.round(s.toAmir/s.total*100):0}% من الطلبات، مقابل ${s.total? Math.round(s.toNaib/s.total*100):0}% لنائب أمير المنطقة.` : '',
+    (visOK('dept') && s.topDept) ? `كانت إدارة "${s.topDept[0]}" الأعلى استقبالًا للطلبات بواقع ${s.topDept[1]} طلبًا.` : '',
+    (visOK('category') && s.topCat) ? `جاء تصنيف "${s.topCat[0]}" الأكثر تكرارًا ضمن التصنيفات الأساسية.` : '',
+    (visOK('dept') && visOK('status') && topPendingDept) ? `تُعد إدارة "${topPendingDept[0]}" الأكثر تركزًا للطلبات تحت الإجراء (${topPendingDept[1]} طلبًا)، ما قد يستدعي متابعة خاصة.` : ''
+  ].filter(Boolean);
+
+  if(!points.length){
+    box.innerHTML = '<p class="empty-note">جميع عناصر التحليل مخفية حاليًا من إعدادات إظهار/إخفاء الرسوم.</p>';
+    return;
+  }
+  box.innerHTML = '<ul style="line-height:2.1; font-size:13.5px; padding-inline-start:18px;">' +
+    points.map(p=>`<li>${p}</li>`).join('') + '</ul>';
+}
+
+/* ============================================================
+   RENDER: INDICATORS PAGE
+============================================================ */
+function renderIndicators(){
+  const data = getFilteredRecords();
+  const s = computeStats(data);
+
+  const tiles = [
+    ['إجمالي الطلبات', s.total, '', null, false],
+    ['نسبة الإنجاز', s.completionRate+'%', '', 'status', true],
+    ['طلبات أمير المنطقة', s.toAmir, s.total? Math.round(s.toAmir/s.total*100)+'% من الإجمالي':'', 'recipient', false],
+    ['طلبات نائب أمير المنطقة', s.toNaib, s.total? Math.round(s.toNaib/s.total*100)+'% من الإجمالي':'', 'recipient', false],
+    ['أكثر إدارة استقبالاً', s.topDept? s.topDept[0]:'—', s.topDept? s.topDept[1]+' طلب':'', 'dept', false],
+    ['أكثر تصنيف أساسي', s.topCat? s.topCat[0]:'—', s.topCat? s.topCat[1]+' طلب':'', 'category', false],
+    ['أكثر شهر ازدحامًا', s.total? MONTHS_AR[s.maxMonthIdx]:'—', s.total? s.byMonth[s.maxMonthIdx]+' طلب':'', 'monthly', false],
+    ['أقل شهر استقبالاً', s.total? MONTHS_AR[s.minMonthIdx]:'—', s.total? s.byMonth[s.minMonthIdx]+' طلب':'', 'monthly', false],
+  ].filter(([,,,key])=> !key || visOK(key));
+  document.getElementById('bigTiles').innerHTML = tiles.map(([l,v,ex,,gold])=>`
+    <div class="big-tile">
+      <div class="lbl">${l}</div>
+      <div class="val ${gold?'gold':''}">${v}</div>
+      ${ex?`<div class="extra">${ex}</div>`:''}
+    </div>`).join('');
+
+  // top5 tables
+  const vis = settings.chartVisibility;
+  const top5DeptPanel = document.getElementById('top5DeptTable').closest('.panel');
+  const top5CatPanel = document.getElementById('top5CatTable').closest('.panel');
+  top5DeptPanel.style.display = vis.dept===false ? 'none' : '';
+  top5CatPanel.style.display = vis.category===false ? 'none' : '';
+
+  const deptEntries = sortedEntries(s.depts).slice(0,5);
+  document.querySelector('#top5DeptTable tbody').innerHTML = deptEntries.map(([k,v])=>
+    `<tr><td>${k}</td><td>${v}</td><td>${s.total?Math.round(v/s.total*100):0}%</td></tr>`).join('') || '<tr><td colspan="3">لا توجد بيانات</td></tr>';
+
+  const catEntries = sortedEntries(s.cats).slice(0,5);
+  document.querySelector('#top5CatTable tbody').innerHTML = catEntries.map(([k,v])=>
+    `<tr><td>${k}</td><td>${v}</td><td>${s.total?Math.round(v/s.total*100):0}%</td></tr>`).join('') || '<tr><td colspan="3">لا توجد بيانات</td></tr>';
+
+  // monthly compare chart
+  const cmpPanel = document.getElementById('chartMonthlyCompare').closest('.panel');
+  const showCompare = vis.monthly !== false && vis.status !== false;
+  cmpPanel.style.display = showCompare ? '' : 'none';
+  if(showCompare){
+    const completedByMonth = new Array(12).fill(0);
+    const pendingByMonth = new Array(12).fill(0);
+    data.forEach(r=>{
+      if(!r.date) return;
+      if(r.status==='مكتمل') completedByMonth[r.date.getMonth()]++;
+      else if(r.status==='تحت الإجراء') pendingByMonth[r.date.getMonth()]++;
+    });
+    const activeIdx = [];
+    for(let i=0;i<12;i++){ if(completedByMonth[i]>0 || pendingByMonth[i]>0) activeIdx.push(i); }
+    if(activeIdx.length){
+      drawGroupedBarChart(document.getElementById('chartMonthlyCompare'), activeIdx.map(i=>MONTHS_AR[i]), [
+        {name:'مكتمل', values:activeIdx.map(i=>completedByMonth[i]), color:'#2F7A56'},
+        {name:'تحت الإجراء', values:activeIdx.map(i=>pendingByMonth[i]), color:'#C9A227'}
+      ]);
+    } else {
+      document.getElementById('chartMonthlyCompare').innerHTML = '<p class="empty-note">لا توجد بيانات</p>';
+    }
+  }
+
+  // pending by dept table (needs both department and status data to be meaningful)
+  const pendingPanel = document.getElementById('pendingDeptTable').closest('.panel');
+  pendingPanel.style.display = (vis.dept===false || vis.status===false) ? 'none' : '';
+  const pendingByDept = {};
+  data.filter(r=>r.status==='تحت الإجراء').forEach(r=> pendingByDept[r.department]=(pendingByDept[r.department]||0)+1);
+  const pendingEntries = sortedEntries(pendingByDept).slice(0, settings.itemLimit||10);
+  document.querySelector('#pendingDeptTable tbody').innerHTML = pendingEntries.map(([k,v])=>
+    `<tr><td>${k}</td><td>${v}</td></tr>`).join('') || '<tr><td colspan="2">لا توجد طلبات تحت الإجراء</td></tr>';
+}
+
+/* ============================================================
+   RENDER: REPORT
+============================================================ */
+let reportCharts = {};
+let summaryManuallyEdited = false;
+
+function generateSummaryText(s){
+  const amirPct = Math.round(s.toAmir/s.total*100);
+  const naibPct = Math.round(s.toNaib/s.total*100);
+  const clauses = [];
+  clauses.push(`بلغ إجمالي الطلبات خلال الفترة المحددة (${s.total}) طلبًا`);
+  if(visOK('status')) clauses.push(`منها (${s.completed}) طلبًا مكتملًا بنسبة إنجاز (${s.completionRate}%)، بينما بلغ عدد الطلبات تحت الإجراء (${s.pending}) طلبًا`);
+  if(visOK('recipient')) clauses.push(`استحوذ أمير المنطقة على (${amirPct}%) من إجمالي الطلبات، مقابل (${naibPct}%) لنائب أمير المنطقة`);
+  if(visOK('dept') && s.topDept) clauses.push(`كانت إدارة (${s.topDept[0]}) الأعلى استقبالًا للطلبات`);
+  if(visOK('category') && s.topCat) clauses.push(`كان التصنيف (${s.topCat[0]}) الأكثر تكرارًا`);
+  return clauses.join('. ') + '.';
+}
+let reportOrientation = 'portrait';
+
+function setReportOrientation(o){
+  reportOrientation = o;
+  document.getElementById('reportArea').classList.toggle('landscape', o==='landscape');
+  document.getElementById('orientPortraitBtn').classList.toggle('active', o==='portrait');
+  document.getElementById('orientLandscapeBtn').classList.toggle('active', o==='landscape');
+  // dynamic @page rule so the browser print dialog defaults to the chosen orientation
+  let styleTag = document.getElementById('printOrientStyle');
+  if(!styleTag){ styleTag = document.createElement('style'); styleTag.id='printOrientStyle'; document.head.appendChild(styleTag); }
+  styleTag.textContent = `@media print{ @page{ size: A4 ${o}; margin:12mm; } }`;
+  forceResizeReportCharts();
+}
+document.getElementById('orientPortraitBtn').addEventListener('click', ()=> setReportOrientation('portrait'));
+document.getElementById('orientLandscapeBtn').addEventListener('click', ()=> setReportOrientation('landscape'));
+function destroyReportCharts(){ reportCharts = {}; }
+
+function renderReport(){
+  const data = getFilteredRecords();
+  const s = computeStats(data);
+  document.getElementById('repTitle').textContent = settings.systemName;
+  document.getElementById('repDate').textContent = 'تاريخ الإصدار: ' + new Date().toLocaleDateString('ar-SA');
+  document.getElementById('repPeriod').textContent = 'الفترة: ' + monthsLabel();
+
+  const logoSlot = document.getElementById('repLogoSlot');
+  logoSlot.innerHTML = settings.logo
+    ? `<img class="rep-logo" src="${settings.logo}">`
+    : `<div class="rep-logo-placeholder">${(settings.systemName||'إم').trim().charAt(0)}</div>`;
+
+  destroyReportCharts();
+
+  if(!s.total){
+    if(!summaryManuallyEdited) document.getElementById('repSummary').textContent = 'لا توجد بيانات بعد. الرجاء استيراد ملف Excel من صفحة "إدارة البيانات".';
+    document.getElementById('repKpis').innerHTML = '';
+    document.getElementById('repChartsArea').innerHTML = '';
+    document.getElementById('repTablesArea').innerHTML = '';
+    return;
+  }
+
+  if(!summaryManuallyEdited) document.getElementById('repSummary').textContent = generateSummaryText(s);
+
+  document.getElementById('repKpis').innerHTML = [
+    ['إجمالي الطلبات', s.total, null],
+    ['نسبة الإنجاز', s.completionRate+'%', 'status'],
+    ['مكتمل', s.completed, 'status'],
+    ['تحت الإجراء', s.pending, 'status'],
+    ['طلبات أمير المنطقة', s.toAmir, 'recipient'],
+    ['طلبات نائب أمير المنطقة', s.toNaib, 'recipient'],
+    ['أكثر إدارة', s.topDept? s.topDept[0]:'—', 'dept'],
+    ['أكثر تصنيف', s.topCat? s.topCat[0]:'—', 'category'],
+  ].filter(([,,key])=> !key || visOK(key)).map(([l,v])=>`<div><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+
+  /* ---- Charts inside the report ---- */
+  const vis = settings.chartVisibility;
+  reportCharts = {};
+  let chartsHtml = '';
+  if(vis.monthly !== false) chartsHtml += `<div class="rep-chart-card"><h4>الطلبات حسب الشهر (الإجمالي / المكتمل / تحت الإجراء)</h4><div class="rep-chart-wrap tall"><div id="repChartMonthly" class="svg-chart-holder"></div></div></div>`;
+  chartsHtml += '<div class="rep-charts-grid">';
+  if(vis.recipient !== false) chartsHtml += `<div class="rep-chart-card"><h4>متلقي الطلب</h4><div class="rep-chart-wrap"><div id="repChartRecipient" class="svg-chart-holder"></div></div></div>`;
+  if(vis.status !== false) chartsHtml += `<div class="rep-chart-card"><h4>حالة الطلب</h4><div class="rep-chart-wrap"><div id="repChartStatus" class="svg-chart-holder"></div></div></div>`;
+  if(vis.category !== false) chartsHtml += `<div class="rep-chart-card"><h4>التصنيف الأساسي</h4><div class="rep-chart-wrap tall"><div id="repChartCategory" class="svg-chart-holder"></div></div></div>`;
+  if(vis.dept !== false) chartsHtml += `<div class="rep-chart-card"><h4>الإدارة المعنية داخل الإمارة</h4><div class="rep-chart-wrap tall"><div id="repChartDept" class="svg-chart-holder"></div></div></div>`;
+  chartsHtml += '</div>';
+  document.getElementById('repChartsArea').innerHTML = chartsHtml;
+
+  if(vis.monthly !== false){
+    const ms = monthlyBreakdownSeries(data, s);
+    if(ms.labels.length){
+      drawGroupedBarChart(document.getElementById('repChartMonthly'), ms.labels, [
+        {name:'إجمالي الطلبات', values:ms.total, color:MONTHLY_SERIES_COLORS.total},
+        {name:'مكتمل', values:ms.completed, color:MONTHLY_SERIES_COLORS.completed},
+        {name:'تحت الإجراء', values:ms.pending, color:MONTHLY_SERIES_COLORS.pending}
+      ], { textColor:'#1B2420', axisColor:'#E4E0D6', valueLabels:true });
+    }
+    reportCharts.repChartMonthly = { label:'الطلبات حسب الشهر' };
+  }
+  if(vis.recipient !== false){
+    const c = countBy(data,'recipient'); const labels=Object.keys(c); const values=Object.values(c);
+    if(labels.length){
+      if(settings.pieType==='bar') drawHorizontalBarChart(document.getElementById('repChartRecipient'), labels, values, { color: settings.colorAccent, textColor:'#1B2420' });
+      else drawPieChart(document.getElementById('repChartRecipient'), labels, values, { doughnut: settings.pieType!=='pie', colors: chartColors(labels.length) });
+      reportCharts.repChartRecipient = { label:'متلقي الطلب' };
+    }
+  }
+  if(vis.status !== false){
+    const c = countBy(data,'status'); const labels=Object.keys(c); const values=Object.values(c);
+    if(labels.length){
+      if(settings.pieType==='bar') drawHorizontalBarChart(document.getElementById('repChartStatus'), labels, values, { color: settings.colorAccent, textColor:'#1B2420' });
+      else drawPieChart(document.getElementById('repChartStatus'), labels, values, { doughnut: settings.pieType!=='pie', colors: chartColors(labels.length) });
+      reportCharts.repChartStatus = { label:'حالة الطلب' };
+    }
+  }
+  if(vis.category !== false){
+    const entries = sortedEntries(countBy(data,'category')).slice(0, settings.itemLimit||10);
+    if(entries.length){
+      if(settings.barType==='pie') drawPieChart(document.getElementById('repChartCategory'), entries.map(e=>e[0]), entries.map(e=>e[1]), { colors: chartColors(entries.length) });
+      else drawHorizontalBarChart(document.getElementById('repChartCategory'), entries.map(e=>e[0]), entries.map(e=>e[1]), { color: settings.colorAccent, textColor:'#1B2420' });
+      reportCharts.repChartCategory = { label:'التصنيف الأساسي' };
+    }
+  }
+  if(vis.dept !== false){
+    const entries = sortedEntries(countBy(data,'department')).slice(0, settings.itemLimit||10);
+    if(entries.length){
+      if(settings.barType==='pie') drawPieChart(document.getElementById('repChartDept'), entries.map(e=>e[0]), entries.map(e=>e[1]), { colors: chartColors(entries.length) });
+      else drawHorizontalBarChart(document.getElementById('repChartDept'), entries.map(e=>e[0]), entries.map(e=>e[1]), { color: settings.colorAccent, textColor:'#1B2420' });
+      reportCharts.repChartDept = { label:'الإدارة المعنية داخل الإمارة' };
+    }
+  }
+
+  /* ---- Tables ---- */
+  const deptRows = sortedEntries(s.depts).slice(0,10).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${Math.round(v/s.total*100)}%</td></tr>`).join('');
+  const catRows = sortedEntries(s.cats).slice(0,10).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td><td>${Math.round(v/s.total*100)}%</td></tr>`).join('');
+  let tablesHtml = '<div class="two-col">';
+  if(vis.category !== false){
+    tablesHtml += `<div>
+        <h4 style="margin-bottom:8px;font-size:13.5px;">التصنيفات الأكثر تكرارًا</h4>
+        <table><thead><tr><th>التصنيف</th><th>العدد</th><th>النسبة</th></tr></thead><tbody>${catRows}</tbody></table>
+      </div>`;
+  }
+  if(vis.dept !== false){
+    tablesHtml += `<div>
+        <h4 style="margin-bottom:8px;font-size:13.5px;">الإدارات الأعلى استقبالًا</h4>
+        <table><thead><tr><th>الإدارة</th><th>العدد</th><th>النسبة</th></tr></thead><tbody>${deptRows}</tbody></table>
+      </div>`;
+  }
+  tablesHtml += '</div>';
+  document.getElementById('repTablesArea').innerHTML = tablesHtml;
+}
+
+/* ============================================================
+   EXPORTS
+============================================================ */
+async function captureReportCanvas(){
+  const el = document.getElementById('reportArea');
+  const fixedWidth = reportOrientation === 'landscape' ? 1400 : 950;
+  const prevWidth = el.style.width;
+  const prevMaxWidth = el.style.maxWidth;
+  // Force a fixed "document" width so the export looks the same regardless of
+  // whether it was triggered from a narrow phone screen or a desktop browser
+  el.style.maxWidth = 'none';
+  el.style.width = fixedWidth + 'px';
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  await new Promise(r=>setTimeout(r,150));
+  const canvas = await html2canvas(el, { scale:2, backgroundColor:'#ffffff', windowWidth: fixedWidth + 100 });
+  el.style.width = prevWidth;
+  el.style.maxWidth = prevMaxWidth;
+  return canvas;
+}
+
+// Finds the nearest genuinely-blank horizontal row to `idealY`, within `maxShift` px,
+// so a page cut lands in the gap between cards instead of through one.
+function findBlankRowNear(ctx, idealY, canvasW, canvasH, maxShift){
+  const top = Math.max(0, Math.round(idealY - maxShift));
+  const bottom = Math.min(canvasH, Math.round(idealY + maxShift));
+  const h = bottom - top;
+  if(h <= 1) return Math.round(idealY);
+  let strip;
+  try{ strip = ctx.getImageData(0, top, canvasW, h).data; }
+  catch(e){ return Math.round(idealY); } // e.g. tainted canvas — fall back to a plain cut
+  const samplesX = 14;
+  let bestY = Math.round(idealY), bestScore = -Infinity;
+  for(let row=0; row<h; row++){
+    let brightMin = 255;
+    for(let s=0; s<samplesX; s++){
+      const x = Math.floor((canvasW/(samplesX+1))*(s+1));
+      const idx = (row*canvasW + x)*4;
+      const bright = (strip[idx]+strip[idx+1]+strip[idx+2])/3;
+      if(bright < brightMin) brightMin = bright;
+    }
+    if(brightMin >= 246){ // this row is blank (near-white) all the way across
+      const dist = Math.abs((top+row) - idealY);
+      const score = -dist; // among blank rows, prefer the one closest to the ideal cut
+      if(score > bestScore){ bestScore = score; bestY = top+row; }
+    }
+  }
+  return bestY;
+}
+
+document.getElementById('exportPdfBtn').addEventListener('click', async ()=>{
+  showToast('جارٍ تحضير أدوات تصدير PDF...');
+  const [pdfOk, canvasOk] = await Promise.all([loadLib('jspdf'), loadLib('html2canvas')]);
+  if(!pdfOk || !canvasOk){ showToast('تعذر تحميل مكتبات تصدير PDF من جميع المصادر — تحقق من الاتصال بالإنترنت'); return; }
+  renderReport();
+  showToast('جارٍ إنشاء ملف PDF...');
+  await new Promise(r=>setTimeout(r,150)); // let charts paint
+  const canvas = await captureReportCanvas();
+  const ctx = canvas.getContext('2d');
+  const { jsPDF } = window.jspdf;
+  const orient = reportOrientation === 'landscape' ? 'l' : 'p';
+  const pdf = new jsPDF(orient,'mm','a4');
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const pxPerMm = canvas.width / pageW;
+  const idealPageHeightPx = pageH * pxPerMm;
+  const maxShiftPx = idealPageHeightPx * 0.3; // how far we'll search for a clean gap
+
+  let cursor = 0;
+  let firstPage = true;
+  while(cursor < canvas.height - 2){
+    const remaining = canvas.height - cursor;
+    let sliceH;
+    if(remaining <= idealPageHeightPx){
+      sliceH = remaining;
+    } else {
+      const idealCut = cursor + idealPageHeightPx;
+      const cutY = findBlankRowNear(ctx, idealCut, canvas.width, canvas.height, maxShiftPx);
+      sliceH = Math.max(1, cutY - cursor);
+    }
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = canvas.width;
+    pageCanvas.height = sliceH;
+    pageCanvas.getContext('2d').drawImage(canvas, 0, cursor, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+    const imgData = pageCanvas.toDataURL('image/png');
+    const imgHmm = sliceH / pxPerMm;
+    if(!firstPage) pdf.addPage();
+    pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgHmm);
+    firstPage = false;
+    cursor += sliceH;
+  }
+
+  pdf.save('التقرير-التنفيذي.pdf');
+  showToast('تم تنزيل ملف PDF (' + (orient==='l'?'أفقي':'عمودي') + ')');
+});
+
+document.getElementById('exportPptxBtn').addEventListener('click', async ()=>{
+  showToast('جارٍ تحضير أدوات تصدير PowerPoint...');
+  const [pptxOk, canvasOk] = await Promise.all([loadLib('pptxgenjs'), loadLib('html2canvas')]);
+  if(!pptxOk || !canvasOk){ showToast('تعذر تحميل مكتبات PowerPoint من جميع المصادر — تحقق من الاتصال بالإنترنت'); return; }
+  renderReport();
+  showToast('جارٍ إنشاء عرض PowerPoint...');
+  await new Promise(r=>setTimeout(r,150)); // let charts paint
+  const data = getFilteredRecords();
+  const s = computeStats(data);
+  const pptx = new window.PptxGenJS();
+  pptx.defineLayout({ name:'CUSTOM', width:10, height:5.63 });
+  pptx.layout = 'CUSTOM';
+  pptx.rtlMode = true; // right-to-left presentation (Arabic content)
+
+  let slide = pptx.addSlide();
+  slide.background = { color:'0B3B2E' };
+  slide.addText(settings.systemName, { x:0.5,y:1.8,w:9,h:1, fontSize:28, bold:true, color:'FFFFFF', align:'center' });
+  slide.addText('التقرير التنفيذي — ' + new Date().toLocaleDateString('ar-SA'), { x:0.5,y:2.7,w:9,h:0.5, fontSize:14, color:'C9A227', align:'center' });
+  slide.addText('الفترة: ' + monthsLabel(), { x:0.5,y:3.2,w:9,h:0.4, fontSize:12, color:'E7EFEA', align:'center' });
+
+  slide = pptx.addSlide();
+  slide.addText('المؤشرات التنفيذية', { x:0.4,y:0.3,w:9.2,h:0.5, fontSize:22, bold:true, color:'0B3B2E', align:'right' });
+  const kpiRows = [
+    ['إجمالي الطلبات', String(s.total), null],
+    ['نسبة الإنجاز', s.completionRate+'%', 'status'],
+    ['مكتمل', String(s.completed), 'status'],
+    ['تحت الإجراء', String(s.pending), 'status'],
+    ['طلبات أمير المنطقة', String(s.toAmir), 'recipient'],
+    ['طلبات نائب أمير المنطقة', String(s.toNaib), 'recipient'],
+    ['أكثر إدارة', s.topDept? s.topDept[0]:'—', 'dept'],
+    ['أكثر تصنيف', s.topCat? s.topCat[0]:'—', 'category'],
+  ].filter(([,,key])=> !key || visOK(key)).map(([l,v])=>[l,v]);
+  slide.addTable(kpiRows.map(r=>r.map(t=>({text:t, options:{fontSize:12, align:'right', valign:'middle'}}))), { x:0.4,y:1.0,w:9.2,h:3.6, border:{type:'solid', color:'E4E0D6'}, fill:{color:'F6F4EE'}, autoPage:false });
+
+  // Chart image slides (capture the already-rendered SVG charts from the report)
+  const chartSlideDefs = [
+    ['repChartMonthly','الطلبات حسب الشهر'],
+    ['repChartRecipient','متلقي الطلب'],
+    ['repChartStatus','حالة الطلب'],
+    ['repChartCategory','التصنيف الأساسي'],
+    ['repChartDept','الإدارة المعنية داخل الإمارة'],
+  ];
+  for(const [key,label] of chartSlideDefs){
+    if(!reportCharts[key]) continue;
+    const holder = document.getElementById(key);
+    if(!holder) continue;
+    const canvas = await html2canvas(holder, { scale:2, backgroundColor:'#ffffff' });
+    const img = canvas.toDataURL('image/png');
+    const cslide = pptx.addSlide();
+    cslide.addText(label, { x:0.4,y:0.25,w:9.2,h:0.5, fontSize:20, bold:true, color:'0B3B2E', align:'right' });
+    cslide.addImage({ data: img, x:0.8, y:0.9, w:8.4, h:4.3 });
+  }
+
+  if(Object.keys(reportCharts).length === 0){
+    showToast('تنبيه: لا توجد رسوم بيانية ظاهرة حاليًا لتضمينها — تأكد من توليد التقرير أولاً');
+  }
+
+  if(visOK('dept')){
+    slide = pptx.addSlide();
+    slide.addText('أعلى الإدارات حسب عدد الطلبات', { x:0.4,y:0.3,w:9.2,h:0.5, fontSize:20, bold:true, color:'0B3B2E', align:'right' });
+    const deptRows = [['الإدارة','العدد']].concat(sortedEntries(s.depts).slice(0,8).map(([k,v])=>[k,String(v)]));
+    slide.addTable(deptRows.map(r=>r.map(t=>({text:t, options:{fontSize:11, align:'right', valign:'middle'}}))), { x:0.4,y:1.0,w:9.2,h:3.6, border:{type:'solid', color:'E4E0D6'}, autoPage:false });
+  }
+
+  if(visOK('category')){
+    slide = pptx.addSlide();
+    slide.addText('أعلى التصنيفات الأساسية', { x:0.4,y:0.3,w:9.2,h:0.5, fontSize:20, bold:true, color:'0B3B2E', align:'right' });
+    const catRows = [['التصنيف','العدد']].concat(sortedEntries(s.cats).slice(0,8).map(([k,v])=>[k,String(v)]));
+    slide.addTable(catRows.map(r=>r.map(t=>({text:t, options:{fontSize:11, align:'right', valign:'middle'}}))), { x:0.4,y:1.0,w:9.2,h:3.6, border:{type:'solid', color:'E4E0D6'}, autoPage:false });
+  }
+
+  pptx.writeFile({ fileName:'التقرير-التنفيذي.pptx' });
+  showToast('تم تنزيل ملف PowerPoint');
+});
+
+document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+  loadLib('xlsx').then(ok=>{
+    if(!ok){ showToast('تعذر تحميل مكتبة Excel من جميع المصادر — تحقق من الاتصال بالإنترنت'); return; }
+    const data = getFilteredRecords();
+    const rows = data.map(r=>({
+      'تاريخ الطلب': r.date ? r.date.toLocaleDateString('en-CA') : '',
+      'متلقي الطلب': r.recipient, 'حالة الطلب': r.status,
+      'التصنيف الأساسي': r.category, 'الإدارة المعنية داخل الإمارة': r.department
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
+    XLSX.writeFile(wb, 'بيانات-الطلبات.xlsx');
+    showToast('تم تنزيل ملف Excel');
+  });
+});
+
+document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+  loadLib('xlsx').then(ok=>{
+    if(!ok){ showToast('تعذر تحميل مكتبة Excel من جميع المصادر — تحقق من الاتصال بالإنترنت'); return; }
+    const data = getFilteredRecords();
+    const rows = data.map(r=>({
+      'تاريخ الطلب': r.date ? r.date.toLocaleDateString('en-CA') : '',
+      'متلقي الطلب': r.recipient, 'حالة الطلب': r.status,
+      'التصنيف الأساسي': r.category, 'الإدارة المعنية داخل الإمارة': r.department
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'بيانات-الطلبات.csv'; a.click();
+    showToast('تم تنزيل ملف CSV');
+  });
+});
+
+document.getElementById('genReportBtn').addEventListener('click', ()=>{ renderReport(); showToast('تم تحديث التقرير'); });
+
+document.getElementById('repSummary').addEventListener('input', ()=>{ summaryManuallyEdited = true; });
+document.getElementById('regenSummaryBtn').addEventListener('click', ()=>{
+  summaryManuallyEdited = false;
+  const data = getFilteredRecords();
+  const s = computeStats(data);
+  if(s.total) document.getElementById('repSummary').textContent = generateSummaryText(s);
+  showToast('تمت إعادة كتابة النص تلقائيًا');
+});
+
+document.addEventListener('click', async (e)=>{
+  const btn = e.target.closest('[data-png]');
+  if(!btn) return;
+  const id = btn.dataset.png;
+  const holder = document.getElementById(id);
+  if(!holder || !holder.children.length){ showToast('لا يوجد رسم لحفظه'); return; }
+  showToast('جارٍ تحضير الصورة...');
+  const ok = await loadLib('html2canvas');
+  if(!ok){ showToast('تعذر تحميل أداة حفظ الصور من جميع المصادر — تحقق من الاتصال بالإنترنت'); return; }
+  const canvas = await html2canvas(holder, { scale:2, backgroundColor:'#ffffff' });
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = id + '.png';
+  a.click();
+  showToast('تم حفظ الصورة');
+});
+
+/* ============================================================
+   DATA MANAGEMENT PAGE WIRING
+============================================================ */
+function updateDataStatus(){
+  document.getElementById('dataCount').textContent = records.length;
+  const last = importLog.find(l=>l.success);
+  document.getElementById('dataLastUpdate').textContent = last ? new Date(last.time).toLocaleString('ar-SA') : '—';
+}
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+dropzone.addEventListener('click', ()=> fileInput.click());
+fileInput.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); });
+['dragover','dragenter'].forEach(ev=> dropzone.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev=> dropzone.addEventListener(ev, e=>{ e.preventDefault(); dropzone.classList.remove('drag'); }));
+dropzone.addEventListener('drop', e=>{ const f = e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+document.getElementById('deleteAllBtn').addEventListener('click', ()=>{
+  if(!confirm('هل أنت متأكد من حذف جميع البيانات؟ لا يمكن التراجع عن هذا الإجراء.')) return;
+  records = []; persistRecords();
+  logImport(true, '—', 0, 'تم حذف جميع البيانات');
+  refreshFilterOptions(); renderAll(); updateDataStatus();
+  showToast('تم حذف جميع البيانات');
+});
+
+document.getElementById('backupBtn').addEventListener('click', ()=>{
+  const backup = { records, settings, importLog, exportedAt:new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(backup,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'نسخة-احتياطية-'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+  showToast('تم إنشاء النسخة الاحتياطية');
+});
+
+document.getElementById('restoreBtn').addEventListener('click', ()=> document.getElementById('restoreInput').click());
+document.getElementById('restoreInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const obj = JSON.parse(ev.target.result);
+      if(!obj.records) throw new Error('صيغة غير صالحة');
+      records = obj.records.map(r=>({...r, date: r.date? new Date(r.date): null}));
+      if(obj.settings) settings = {...DEFAULT_SETTINGS, ...obj.settings};
+      if(obj.importLog) importLog = obj.importLog;
+      persistRecords(); persistSettings(); persistLog();
+      applySettingsToUI(); refreshFilterOptions(); renderAll(); updateDataStatus(); renderImportLog();
+      showToast('تم استعادة النسخة الاحتياطية بنجاح');
+    }catch(err){ showToast('تعذرت استعادة الملف — تأكد أنه نسخة احتياطية صحيحة'); }
+  };
+  reader.readAsText(f);
+});
+
+/* ============================================================
+   SETTINGS PAGE WIRING
+============================================================ */
+function applySettingsToUI(){
+  document.getElementById('setSystemName').value = settings.systemName;
+  document.getElementById('setColorPrimary').value = settings.colorPrimary;
+  document.getElementById('setColorAccent').value = settings.colorAccent;
+  document.getElementById('setItemLimit').value = settings.itemLimit;
+  document.getElementById('setBarType').value = settings.barType;
+  document.getElementById('setPieType').value = settings.pieType;
+  document.getElementById('brandTitle').textContent = settings.systemName;
+  document.getElementById('repTitle').textContent = settings.systemName;
+  document.documentElement.style.setProperty('--emerald-deep', settings.colorPrimary);
+  document.documentElement.style.setProperty('--gold', settings.colorAccent);
+  renderLogo();
+  renderChartVisibilityList();
+  renderChartOrderList();
+}
+function renderLogo(){
+  const slot = document.getElementById('logoSlot');
+  slot.innerHTML = settings.logo
+    ? `<img class="brand-logo" src="${settings.logo}">`
+    : `<div class="brand-logo-placeholder">${(settings.systemName||'إم').trim().charAt(0)}</div>`;
+}
+function renderChartVisibilityList(){
+  const labels = { monthly:'الطلبات حسب الشهر', recipient:'متلقي الطلب', status:'حالة الطلب', category:'التصنيف الأساسي', dept:'الإدارة المعنية' };
+  const el = document.getElementById('chartVisibilityList');
+  el.innerHTML = Object.keys(labels).map(k=>`
+    <div class="setting-row">
+      <div class="lbl">${labels[k]}</div>
+      <label class="switch"><input type="checkbox" data-vis="${k}" ${settings.chartVisibility[k]!==false?'checked':''}><span class="slider"></span></label>
+    </div>`).join('');
+  el.querySelectorAll('input[data-vis]').forEach(inp=>{
+    inp.onchange = ()=>{ settings.chartVisibility[inp.dataset.vis] = inp.checked; };
+  });
+}
+function renderChartOrderList(){
+  const labels = { recipient:'متلقي الطلب', status:'حالة الطلب', category:'التصنيف الأساسي', dept:'الإدارة المعنية' };
+  const el = document.getElementById('chartOrderList');
+  el.innerHTML = settings.chartOrder.map((k,i)=>`
+    <li class="order-item" data-key="${k}">
+      <span>${labels[k]}</span>
+      <span class="handle">
+        <button data-move="up" ${i===0?'disabled':''}>▲</button>
+        <button data-move="down" ${i===settings.chartOrder.length-1?'disabled':''}>▼</button>
+      </span>
+    </li>`).join('');
+  el.querySelectorAll('button[data-move]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const li = btn.closest('.order-item');
+      const key = li.dataset.key;
+      const idx = settings.chartOrder.indexOf(key);
+      const dir = btn.dataset.move==='up' ? -1 : 1;
+      const swapIdx = idx+dir;
+      if(swapIdx<0 || swapIdx>=settings.chartOrder.length) return;
+      [settings.chartOrder[idx], settings.chartOrder[swapIdx]] = [settings.chartOrder[swapIdx], settings.chartOrder[idx]];
+      renderChartOrderList();
+    };
+  });
+}
+
+document.getElementById('logoBtn').addEventListener('click', ()=> document.getElementById('logoInput').click());
+document.getElementById('logoInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{ settings.logo = ev.target.result; renderLogo(); };
+  reader.readAsDataURL(f);
+});
+document.getElementById('logoRemoveBtn').addEventListener('click', ()=>{ settings.logo=null; renderLogo(); });
+
+document.getElementById('saveSettingsBtn').addEventListener('click', ()=>{
+  settings.systemName = document.getElementById('setSystemName').value.trim() || DEFAULT_SETTINGS.systemName;
+  settings.colorPrimary = document.getElementById('setColorPrimary').value;
+  settings.colorAccent = document.getElementById('setColorAccent').value;
+  settings.itemLimit = +document.getElementById('setItemLimit').value;
+  settings.barType = document.getElementById('setBarType').value;
+  settings.pieType = document.getElementById('setPieType').value;
+  persistSettings();
+  applySettingsToUI();
+  renderAll();
+  if(document.getElementById('page-report').classList.contains('active')) renderReport();
+  showToast('تم حفظ الإعدادات');
+});
+
+document.getElementById('resetSettingsBtn').addEventListener('click', ()=>{
+  if(!confirm('إعادة جميع الإعدادات إلى الوضع الافتراضي؟')) return;
+  settings = {...DEFAULT_SETTINGS, chartVisibility:{...DEFAULT_SETTINGS.chartVisibility}, chartOrder:[...DEFAULT_SETTINGS.chartOrder]};
+  persistSettings();
+  applySettingsToUI();
+  renderAll();
+  if(document.getElementById('page-report').classList.contains('active')) renderReport();
+  showToast('تمت إعادة الإعدادات الافتراضية');
+});
+
+/* ============================================================
+   NAVIGATION / THEME / PRINT
+============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+btn.dataset.page).classList.add('active');
+    if(btn.dataset.page==='indicators') renderIndicators();
+    if(btn.dataset.page==='report') renderReport();
+  });
+});
+
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  document.getElementById('themeToggle').textContent = next==='dark' ? '☀️' : '🌙';
+  saveLS(LS_THEME, next);
+  setTimeout(renderAll, 60); // refresh chart text colors
+});
+
+function enterPresentationMode(){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.page==='indicators'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-indicators').classList.add('active');
+  renderIndicators();
+  document.body.classList.add('presentation-mode');
+  document.getElementById('exitPresentBtn').style.display = 'block';
+  if(document.documentElement.requestFullscreen){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  }
+}
+function exitPresentationMode(){
+  document.body.classList.remove('presentation-mode');
+  document.getElementById('exitPresentBtn').style.display = 'none';
+  if(document.fullscreenElement && document.exitFullscreen){
+    document.exitFullscreen().catch(()=>{});
+  }
+}
+document.getElementById('presentBtn').addEventListener('click', enterPresentationMode);
+document.getElementById('exitPresentBtn').addEventListener('click', exitPresentationMode);
+document.addEventListener('fullscreenchange', ()=>{
+  if(!document.fullscreenElement && document.body.classList.contains('presentation-mode')) exitPresentationMode();
+});
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape' && document.body.classList.contains('presentation-mode') && !document.fullscreenElement) exitPresentationMode();
+});
+
+document.getElementById('printBtn').addEventListener('click', async ()=>{
+  if(document.getElementById('page-report').classList.contains('active')){
+    renderReport();
+    await new Promise(r=>setTimeout(r,150)); // let charts paint before the print snapshot
+  }
+  window.print();
+});
+
+/* ============================================================
+   INIT
+============================================================ */
+function renderAll(){
+  renderDashboard();
+  renderIndicators();
+  updateDataStatus();
+}
+
+function init(){
+  loadAll();
+  buildFiltersBar('filtersBar');
+  buildFiltersBar('filtersBarIndicators');
+  applySettingsToUI();
+  renderImportLog();
+  renderAll();
+}
+init();
+
+})();
+</script>
+</body>
+</html>
